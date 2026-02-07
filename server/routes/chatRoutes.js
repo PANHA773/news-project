@@ -20,20 +20,65 @@ router.get("/", protect, async (req, res) => {
     }
 });
 
+// @desc    Get users who have a private conversation with the current user
+// @route   GET /api/chat/conversations
+// @access  Private
+router.get("/conversations", protect, async (req, res) => {
+    try {
+        const conversations = await Message.aggregate([
+            {
+                $match: {
+                    $or: [{ sender: req.user._id }, { recipient: req.user._id }],
+                    recipient: { $ne: null }
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ["$sender", req.user._id] },
+                            "$recipient",
+                            "$sender"
+                        ]
+                    },
+                    lastMessage: { $first: "$$ROOT" }
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userDetails"
+                }
+            },
+            { $unwind: "$userDetails" },
+            {
+                $project: {
+                    _id: "$userDetails._id",
+                    name: "$userDetails.name",
+                    email: "$userDetails.email",
+                    avatar: "$userDetails.avatar",
+                }
+            }
+        ]);
+
+        res.json(conversations);
+    } catch (error) {
+        console.error("Error fetching conversations:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @desc    Send a message (public or private)
 // @route   POST /api/chat
 // @access  Private
 router.post("/", protect, async (req, res) => {
     try {
         const { content, recipientId } = req.body;
-
-        // If recipientId provided, ensure recipient is a friend
-        if (recipientId) {
-            const sender = await require("../models/User").findById(req.user._id);
-            if (!sender) return res.status(404).json({ message: "Sender not found" });
-            const isFriend = sender.friends && sender.friends.some(id => id.toString() === recipientId);
-            if (!isFriend) return res.status(403).json({ message: "Can only send private messages to friends" });
-        }
 
         const newMessage = await Message.create({
             sender: req.user._id,

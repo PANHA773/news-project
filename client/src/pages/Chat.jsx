@@ -269,7 +269,7 @@ const Chat = () => {
     setIsProfileOpen(false);
   };
 
-  const [friends, setFriends] = useState([]);
+  const [sidebarUsers, setSidebarUsers] = useState([]);
   const [activeConversationWith, setActiveConversationWith] = useState(null); // id or null for public
   const [allUsers, setAllUsers] = useState([]);
   const [showAllUsers, setShowAllUsers] = useState(false);
@@ -297,16 +297,16 @@ const Chat = () => {
 
   useEffect(() => {
     if (!user) return;
-    // fetch friends for sidebar (returns friends of the authenticated user)
-    const loadFriends = async () => {
+    // fetch active conversations for sidebar
+    const loadConversations = async () => {
       try {
-        const { data } = await api.get('/users/me/friends');
-        setFriends(data || []);
+        const { data } = await api.get('/chat/conversations');
+        setSidebarUsers(data || []);
       } catch (err) {
-        console.error('Error fetching friends', err);
+        console.error('Error fetching conversations', err);
       }
     };
-    loadFriends();
+    loadConversations();
 
     // fetch all users for quick access (if permitted)
     const loadAllUsers = async () => {
@@ -355,7 +355,7 @@ const Chat = () => {
             Public Chat
           </button>
           <div className="space-y-2 mt-2">
-                  {friends.map(f => (
+                  {sidebarUsers.map(f => (
               <button
                 key={f._id}
                 onClick={() => selectUserConversation(f)}
