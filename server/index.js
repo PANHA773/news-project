@@ -6,6 +6,8 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const Message = require("./models/Message");
+const User = require("./models/User");
+const { protect } = require("./middleware/authMiddleware");
 
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
@@ -16,6 +18,7 @@ const aboutRoutes = require("./routes/aboutRoutes");
 const userRoutes = require("./routes/userRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const storyRoutes = require("./routes/storyRoutes");
 
 
 dotenv.config();
@@ -189,7 +192,19 @@ app.use("/api/about", aboutRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/activities", activityRoutes);
+app.use("/api/stories", storyRoutes);
 app.use("/api/backup", require("./routes/backupRoutes"));
+
+// Add-friend helper: return all users (basic profiles)
+app.get("/api/add-friend", protect, async (req, res) => {
+    try {
+        const users = await User.find({})
+            .select("name email avatar bio role");
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
 
 
 const dirname = path.resolve();

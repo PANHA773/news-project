@@ -297,6 +297,19 @@ router.put("/settings", protect, async (req, res) => {
 
 // --- Admin & Staff Routes ---
 
+// @desc    Get all users (basic profiles)
+// @route   GET /api/users/all
+// @access  Private
+router.get("/all", protect, async (req, res) => {
+    try {
+        const users = await User.find({})
+            .select("name email avatar bio role");
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
 // @desc    Get all users
 // @route   GET /api/users
 // @access  Private (Manage Users Permission)
@@ -428,33 +441,7 @@ router.get("/me/friends", protect, async (req, res) => {
 // @route   POST /api/users/:id/add-friend
 // @access  Private
 router.post("/:id/add-friend", protect, async (req, res) => {
-    try {
-        const targetId = req.params.id;
-        if (targetId === req.user._id.toString()) return res.status(400).json({ message: "Cannot add yourself" });
-
-        const me = await User.findById(req.user._id);
-        const other = await User.findById(targetId);
-        if (!other) return res.status(404).json({ message: "User not found" });
-
-        // Add if not exists
-        if (!me.friends) me.friends = [];
-        if (!other.friends) other.friends = [];
-
-        const alreadyFriends = me.friends.some(id => id.toString() === targetId);
-        if (alreadyFriends) return res.status(400).json({ message: "Already friends" });
-
-        me.friends.push(other._id);
-        other.friends.push(me._id);
-
-        await me.save();
-        await other.save();
-
-        await logActivity(req.user._id, "ADD_FRIEND", { friendId: other._id }, req);
-
-        res.json({ message: "Friend added" });
-    } catch (error) {
-        res.status(500).json({ message: "Server Error" });
-    }
+    res.status(400).json({ message: "Friendship requires confirmation. Use the friend request flow." });
 });
 
 // @desc    Remove friend (mutual)

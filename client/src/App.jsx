@@ -21,6 +21,7 @@ import ManageAbout from "./pages/ManageAbout";
 import ManageUsers from "./pages/ManageUsers";
 import Notifications from "./pages/Notifications";
 import ActivityLogs from "./pages/ActivityLogs";
+import AddFriend from "./pages/AddFriend";
 
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/bookmarks" element={<Bookmarks />} />
                   <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/add-friend" element={<AddFriend />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/author/:id" element={<AuthorArticles />} />
                   <Route path="/about" element={<About />} />

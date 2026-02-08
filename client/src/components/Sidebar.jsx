@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Bookmark,
   Users,
+  UserPlus,
   Bell,
   X,
   PenTool,
@@ -145,6 +146,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 {isActive && <div className="absolute inset-y-0 left-0 w-1 bg-[var(--primary-glow)] shadow-[0_0_10px_#00f3ff]" />}
                 <MessageSquare className={iconClass(isActive)} />
                 <span className="ml-4">Community Chat</span>
+              </>
+            )}
+          </NavLink>
+
+          <NavLink to="/add-friend" className={navLinkClass}>
+            {({ isActive }) => (
+              <>
+                {isActive && <div className="absolute inset-y-0 left-0 w-1 bg-[var(--primary-glow)] shadow-[0_0_10px_#00f3ff]" />}
+                <UserPlus className={iconClass(isActive)} />
+                <span className="ml-4">Add Friend</span>
               </>
             )}
           </NavLink>
