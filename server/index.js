@@ -216,4 +216,5 @@ app.get("/api/add-friend", protect, async (req, res) => {
 const uploadsDir = ensureUploadsDir();
 app.use("/uploads", express.static(uploadsDir));
 
-module.exports = { app, server };
+module.exports = server;
+module.exports.app = app;
