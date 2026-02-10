@@ -12,10 +12,8 @@ function resolveUploadsDir() {
         fs.mkdirSync(cwdUploads, { recursive: true });
         return cwdUploads;
     } catch (err) {
-        if (err && err.code === "EROFS") {
-            return path.join(os.tmpdir(), "uploads");
-        }
-        throw err;
+        // Any failure (read-only FS, missing base path, etc) -> fall back to tmp
+        return path.join(os.tmpdir(), "uploads");
     }
 }
 

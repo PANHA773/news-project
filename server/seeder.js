@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const fs = require("fs");
 const path = require("path");
 const User = require("./models/User");
 const Category = require("./models/Category");
@@ -7,7 +8,10 @@ const News = require("./models/News");
 const FriendRequest = require("./models/FriendRequest");
 const bcrypt = require("bcryptjs");
 
-dotenv.config({ path: path.join(__dirname, ".env") });
+const envPath = path.join(__dirname, ".env");
+if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+}
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
 

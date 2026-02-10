@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -21,7 +22,10 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const storyRoutes = require("./routes/storyRoutes");
 
-dotenv.config({ path: path.join(__dirname, ".env") });
+const envPath = path.join(__dirname, ".env");
+if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+}
 
 const app = express();
 const server = http.createServer(app);
