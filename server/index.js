@@ -56,7 +56,9 @@ mongoose
     .connect(MONGO_URI)
     .then(() => {
         console.log("Connected to MongoDB");
-        server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        if (require.main === module) {
+            server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        }
     })
     .catch((err) => console.log(err));
 
@@ -213,3 +215,5 @@ app.get("/api/add-friend", protect, async (req, res) => {
 
 const uploadsDir = ensureUploadsDir();
 app.use("/uploads", express.static(uploadsDir));
+
+module.exports = { app, server };
