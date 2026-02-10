@@ -5,6 +5,9 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
+    authProvider: { type: String, default: "local" }, // local, google, facebook
+    googleId: { type: String, default: "" },
+    facebookId: { type: String, default: "" },
     role: { type: String, default: "user" }, // admin, user
     avatar: { type: String, default: "" },
     bio: { type: String, default: "" },

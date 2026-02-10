@@ -1,13 +1,71 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const axios = require("axios");
+const { OAuth2Client } = require("google-auth-library");
 const logActivity = require("../utils/activityLogger");
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
         expiresIn: "30d",
     });
+};
+
+const createOrUpdateSocialUser = async ({ provider, providerId, email, name, avatar, req }) => {
+    let user = await User.findOne({ [`${provider}Id`]: providerId });
+
+    if (!user && email) {
+        user = await User.findOne({ email });
+    }
+
+    if (user) {
+        let changed = false;
+
+        if (!user[`${provider}Id`]) {
+            user[`${provider}Id`] = providerId;
+            changed = true;
+        }
+
+        if (!user.authProvider || user.authProvider === "local") {
+            user.authProvider = provider;
+            changed = true;
+        }
+
+        if (!user.avatar && avatar) {
+            user.avatar = avatar;
+            changed = true;
+        }
+
+        if (changed) {
+            await user.save();
+        }
+
+        try { await logActivity(user._id, "SOCIAL_LOGIN", { provider }, req); } catch (e) {}
+        return user;
+    }
+
+    if (!email) {
+        const err = new Error("Email not available from provider");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const randomPassword = crypto.randomBytes(24).toString("hex");
+    user = await User.create({
+        name: name || email.split("@")[0],
+        email,
+        password: randomPassword,
+        avatar: avatar || "",
+        authProvider: provider,
+        [`${provider}Id`]: providerId,
+    });
+
+    try { await logActivity(user._id, "REGISTER_SOCIAL", { provider, email }, req); } catch (e) {}
+    return user;
 };
 
 // @desc    Register a new user (Admin)
@@ -84,6 +142,136 @@ const loginUser = async (req, res) => {
     } catch (error) {
         console.error("Login Error:", error);
         res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Auth with Google & get token
+// @route   POST /api/auth/google
+// @access  Public
+const loginWithGoogle = async (req, res) => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+        return res.status(400).json({ message: "idToken is required" });
+    }
+
+    try {
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            return res.status(500).json({ message: "Google client ID is not configured" });
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const providerId = payload && payload.sub;
+        const email = payload && payload.email;
+        const emailVerified = payload && payload.email_verified;
+        const name = payload && payload.name;
+        const avatar = payload && payload.picture;
+
+        if (!providerId) {
+            return res.status(401).json({ message: "Invalid Google token" });
+        }
+
+        if (!email || !emailVerified) {
+            return res.status(400).json({ message: "Google account email not verified" });
+        }
+
+        const user = await createOrUpdateSocialUser({
+            provider: "google",
+            providerId,
+            email,
+            name,
+            avatar,
+            req,
+        });
+
+        return res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            token: generateToken(user._id),
+            settings: user.settings,
+        });
+    } catch (error) {
+        console.error("Google Login Error:", error);
+        res.status(500).json({ message: error.message || "Google login failed" });
+    }
+};
+
+// @desc    Auth with Facebook & get token
+// @route   POST /api/auth/facebook
+// @access  Public
+const loginWithFacebook = async (req, res) => {
+    const { accessToken } = req.body;
+
+    if (!accessToken) {
+        return res.status(400).json({ message: "accessToken is required" });
+    }
+
+    try {
+        const appId = process.env.FACEBOOK_APP_ID;
+        const appSecret = process.env.FACEBOOK_APP_SECRET;
+
+        if (!appId || !appSecret) {
+            return res.status(500).json({ message: "Facebook app credentials are not configured" });
+        }
+
+        const appAccessToken = `${appId}|${appSecret}`;
+
+        const debugResponse = await axios.get("https://graph.facebook.com/debug_token", {
+            params: {
+                input_token: accessToken,
+                access_token: appAccessToken,
+            },
+        });
+
+        const debugData = debugResponse.data && debugResponse.data.data;
+        const isValid = debugData && debugData.is_valid;
+        const providerId = debugData && debugData.user_id;
+        const appIdMatches = debugData && debugData.app_id && String(debugData.app_id) === String(appId);
+
+        if (!isValid || !providerId || !appIdMatches) {
+            return res.status(401).json({ message: "Invalid Facebook token" });
+        }
+
+        const meResponse = await axios.get("https://graph.facebook.com/me", {
+            params: {
+                fields: "id,name,email,picture",
+                access_token: accessToken,
+            },
+        });
+
+        const me = meResponse.data || {};
+        const email = me.email;
+        const name = me.name;
+        const avatar = me.picture && me.picture.data && me.picture.data.url;
+
+        const user = await createOrUpdateSocialUser({
+            provider: "facebook",
+            providerId,
+            email,
+            name,
+            avatar,
+            req,
+        });
+
+        return res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            token: generateToken(user._id),
+            settings: user.settings,
+        });
+    } catch (error) {
+        console.error("Facebook Login Error:", error);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ message: error.message || "Facebook login failed" });
     }
 };
 
@@ -201,4 +389,12 @@ const updateUserProfileById = async (req, res) => {
     }
 };
 
-module.exports = { registerUser, loginUser, getUserProfile, updateUserProfile, updateUserProfileById };
+module.exports = {
+    registerUser,
+    loginUser,
+    loginWithGoogle,
+    loginWithFacebook,
+    getUserProfile,
+    updateUserProfile,
+    updateUserProfileById,
+};

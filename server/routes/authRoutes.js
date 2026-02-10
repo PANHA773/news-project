@@ -1,7 +1,15 @@
 const express = require("express");
 const path = require("path");
 const multer = require("multer");
-const { registerUser, loginUser, getUserProfile, updateUserProfile, updateUserProfileById } = require("../controllers/authController");
+const {
+    registerUser,
+    loginUser,
+    loginWithGoogle,
+    loginWithFacebook,
+    getUserProfile,
+    updateUserProfile,
+    updateUserProfileById,
+} = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -20,6 +28,8 @@ const upload = multer({ storage });
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/google", loginWithGoogle);
+router.post("/facebook", loginWithFacebook);
 router.get("/profile", protect, getUserProfile);
 
 // Update profile (supports multipart/form-data with `image` field)
