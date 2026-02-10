@@ -4,10 +4,20 @@ const { getBackup, restoreBackup } = require('../controllers/backupController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const path = require('path');
+const { ensureUploadsSubdir } = require('../utils/uploads');
 
 // Configure multer for temporary storage
+const storage = multer.diskStorage({
+    destination(req, file, cb) {
+        cb(null, ensureUploadsSubdir("temp"));
+    },
+    filename(req, file, cb) {
+        cb(null, `backup-${Date.now()}${path.extname(file.originalname)}`);
+    },
+});
+
 const upload = multer({
-    dest: 'uploads/temp/', // Temporary folder
+    storage,
     fileFilter: function (req, file, cb) {
         const filetypes = /json/;
         const mimetypes = /application\/json/;

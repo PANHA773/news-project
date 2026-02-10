@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const { ensureUploadsDir } = require("./utils/uploads");
 const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -20,8 +21,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const storyRoutes = require("./routes/storyRoutes");
 
-
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 const server = http.createServer(app);
@@ -207,5 +207,5 @@ app.get("/api/add-friend", protect, async (req, res) => {
 });
 
 
-const dirname = path.resolve();
-app.use("/uploads", express.static(path.join(dirname, "/uploads")));
+const uploadsDir = ensureUploadsDir();
+app.use("/uploads", express.static(uploadsDir));

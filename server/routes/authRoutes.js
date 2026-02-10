@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const multer = require("multer");
+const { ensureUploadsDir } = require("../utils/uploads");
 const {
     registerUser,
     loginUser,
@@ -17,7 +18,7 @@ const router = express.Router();
 // Multer storage for profile images
 const storage = multer.diskStorage({
 	destination(req, file, cb) {
-		cb(null, "uploads");
+		cb(null, ensureUploadsDir());
 	},
 	filename(req, file, cb) {
 		cb(null, `media-${Date.now()}${path.extname(file.originalname)}`);

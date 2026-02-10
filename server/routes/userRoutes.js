@@ -5,12 +5,13 @@ const FriendRequest = require("../models/FriendRequest");
 const multer = require("multer");
 const path = require("path");
 const logActivity = require("../utils/activityLogger");
+const { ensureUploadsDir } = require("../utils/uploads");
 const router = express.Router();
 
 // Multer setup for avatar uploads
 const storage = multer.diskStorage({
     destination(req, file, cb) {
-        cb(null, "uploads");
+        cb(null, ensureUploadsDir());
     },
     filename(req, file, cb) {
         cb(null, `avatar-${Date.now()}${path.extname(file.originalname)}`);
