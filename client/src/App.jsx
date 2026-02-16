@@ -7,6 +7,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { SocketProvider } from "./context/SocketContext";
 import { NotificationsProvider } from "./context/NotificationsContext";
 import PrivateRoute from "./components/PrivateRoute";
+import AdminRoute from "./components/AdminRoute";
 import Layout from "./components/Layout";
 import News from "./pages/News";
 import Categories from "./pages/Categories";
@@ -34,8 +35,11 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
+                <Route element={<AdminRoute><Layout /></AdminRoute>}>
                   <Route path="/" element={<Dashboard />} />
+                </Route>
+                <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
+                  {/* <Route path="/" element={<News />} /> */}
                   <Route path="/news" element={<News />} />
                   <Route path="/news/:id" element={<ArticleDetail />} />
                   <Route path="/categories" element={<Categories />} />

@@ -94,6 +94,51 @@ router.post("/", protect, async (req, res) => {
     }
 });
 
+// @desc    Update own message
+// @route   PATCH /api/chat/:id
+// @access  Private
+router.patch("/:id", protect, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ message: "Content is required" });
+
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: "Message not found" });
+        if (message.sender.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
+        message.content = content;
+        message.isEdited = true;
+        await message.save();
+
+        const populated = await message.populate("sender", "name email avatar bio gender role");
+        res.json(populated);
+    } catch (error) {
+        console.error("Error editing message:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Delete own message
+// @route   DELETE /api/chat/:id
+// @access  Private
+router.delete("/:id", protect, async (req, res) => {
+    try {
+        const message = await Message.findById(req.params.id);
+        if (!message) return res.status(404).json({ message: "Message not found" });
+        if (message.sender.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
+        await message.deleteOne();
+        res.json({ message: "Message removed" });
+    } catch (error) {
+        console.error("Error deleting message:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @desc    Get private conversation between authenticated user and another
 // @route   GET /api/chat/conversation/:userId
 // @access  Private

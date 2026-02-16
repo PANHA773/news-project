@@ -8,7 +8,11 @@ const userSchema = new mongoose.Schema({
     authProvider: { type: String, default: "local" }, // local, google, facebook
     googleId: { type: String, default: "" },
     facebookId: { type: String, default: "" },
-    role: { type: String, default: "user" }, // admin, user
+    role: { 
+        type: String, 
+        enum: ["admin", "user", "teacher", "student", "guest"], 
+        default: "guest" 
+    }, // admin, user, teacher, student, guest
     avatar: { type: String, default: "" },
     bio: { type: String, default: "" },
     gender: { type: String, enum: ["Male", "Female", "Other"], default: "Other" },

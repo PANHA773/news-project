@@ -184,7 +184,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
           {user?.role?.toLowerCase() === "admin" && (
             <>
-              <div className="my-2 border-t border-white/5 mx-6" />
+              <div className="" />
               <NavLink to="/manage-about" className={navLinkClass}>
                 {({ isActive }) => (
                   <>

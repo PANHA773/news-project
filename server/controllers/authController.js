@@ -72,7 +72,7 @@ const createOrUpdateSocialUser = async ({ provider, providerId, email, name, ava
 // @route   POST /api/auth/register
 // @access  Public (for initial setup)
 const registerUser = async (req, res) => {
-    const { name, email, password, gender } = req.body;
+    const { name, email, password, gender, role } = req.body;
 
     try {
         const userExists = await User.findOne({ email });
@@ -86,6 +86,7 @@ const registerUser = async (req, res) => {
             email,
             password,
             gender: gender || "Other",
+            role: role,
         });
 
         if (user) {
@@ -112,8 +113,8 @@ const registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
-    const { email, password } = req.body;
-    console.log(`Login attempt: email=${email}, password=${password}`);
+    const { email, password, role } = req.body;
+    console.log(`Login attempt: email=${email}, password=${password}, role=${role}`);
 
     try {
         const user = await User.findOne({ email });
@@ -124,6 +125,7 @@ const loginUser = async (req, res) => {
             console.log(`Password match: ${isMatch}`);
 
             if (isMatch) {
+            
                 // Log login
                 await logActivity(user._id, "LOGIN", { email: user.email }, req);
 

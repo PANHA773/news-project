@@ -27,8 +27,8 @@ export const AuthProvider = ({ children }) => {
         checkUser();
     }, []);
 
-    const login = async (email, password) => {
-        const { data } = await api.post("/auth/login", { email, password });
+    const login = async (email, password, role) => {
+        const { data } = await api.post("/auth/login", { email, password, role });
         localStorage.setItem("token", data.token);
 
         // Fetch full profile immediately after login to get populated bookmarks/settings
