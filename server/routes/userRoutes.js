@@ -106,6 +106,22 @@ router.put("/profile", protect, async (req, res) => {
     }
 });
 
+// @desc    Get my bookmarks (expanded)
+// @route   GET /api/users/bookmarks
+// @access  Private
+router.get("/bookmarks", protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id)
+            .select("bookmarks")
+            .populate({ path: "bookmarks", populate: { path: "category author" } });
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.json(user.bookmarks || []);
+    } catch (error) {
+        console.error("/api/users/bookmarks GET error:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+});
+
 // @desc    Update user avatar (multipart/form-data)
 // @route   PUT /api/users/profile/avatar
 // @access  Private
@@ -308,6 +324,48 @@ router.get("/all", protect, async (req, res) => {
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: "Server Error" });
+    }
+});
+
+// Convenience alias for mobile clients: POST /api/users/bookmarks
+router.post("/bookmarks", protect, async (req, res) => {
+    try {
+        console.log('[Bookmark POST alias] headers:', { authorization: !!req.headers.authorization });
+        console.log('[Bookmark POST alias] body keys:', Object.keys(req.body || {}), 'query keys:', Object.keys(req.query || {}));
+
+        const articleId = (req.body && (req.body.articleId || req.body.id || req.body.article_id || req.body.article || (req.body.data && req.body.data.articleId))) || req.query.articleId || req.query.id || req.query.article_id || req.query.article;
+        if (!articleId) return res.status(400).json({ message: "articleId required in body or query", received: { bodyKeys: Object.keys(req.body || {}), queryKeys: Object.keys(req.query || {}) } });
+
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        user.bookmarks = user.bookmarks || [];
+        const isBookmarked = user.bookmarks.some(id => id.toString() === articleId);
+
+        if (isBookmarked) {
+            user.bookmarks = user.bookmarks.filter(id => id.toString() !== articleId);
+            await user.save();
+            await user.populate({ path: 'bookmarks', populate: { path: 'category author' } });
+            try {
+                await logActivity(req.user._id, "REMOVE_BOOKMARK", { articleId }, req);
+            } catch (err) {
+                console.error("Bookmark log error:", err);
+            }
+            res.json({ message: "Bookmark removed", bookmarks: user.bookmarks });
+        } else {
+            user.bookmarks.push(articleId);
+            await user.save();
+            await user.populate({ path: 'bookmarks', populate: { path: 'category author' } });
+            try {
+                await logActivity(req.user._id, "ADD_BOOKMARK", { articleId }, req);
+            } catch (err) {
+                console.error("Bookmark log error:", err);
+            }
+            res.json({ message: "Bookmark added", bookmarks: user.bookmarks });
+        }
+    } catch (error) {
+        console.error("/api/users/bookmarks POST error:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
 });
 

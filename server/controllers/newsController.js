@@ -35,7 +35,8 @@ const getNews = async (req, res) => {
 // @route   POST /api/news
 // @access  Private (Admin)
 const createNews = async (req, res) => {
-    const { title, content, image, video, documents, category } = req.body;
+    // Support requests where body might be undefined (e.g., wrong content-type)
+    const { title, content, image, video, documents, category, caption } = req.body || {};
 
     try {
         if (!req.user) {
@@ -58,13 +59,24 @@ const createNews = async (req, res) => {
             status = "published";
         }
 
+        const trimmedTitle = (title || "").trim();
+        const trimmedCaption = (caption || "").trim();
+        const trimmedContent = (content || "").trim();
+
+        if (!trimmedTitle || !trimmedContent) {
+            return res.status(400).json({ message: "Title and content are required" });
+        }
+
+        const derivedTitle = trimmedTitle || trimmedCaption || "";
+        const derivedContent = trimmedContent || trimmedCaption || "";
+
         const news = new News({
-            title,
-            content,
-            image,
-            video,
-            documents,
-            category,
+            title: derivedTitle,
+            content: derivedContent,
+            image: image || "",
+            video: video || "",
+            documents: documents || [],
+            category: category || null,
             author: req.user._id,
             status, // 👈 important
         });
