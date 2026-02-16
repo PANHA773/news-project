@@ -7,7 +7,9 @@ const {
     deleteNews,
     toggleLike,
     addComment,
-    getComments
+    getComments,
+    updateComment,
+    deleteComment
 } = require("../controllers/newsController");
 const { protect, checkPermission } = require("../middleware/authMiddleware");
 
@@ -20,5 +22,8 @@ router.route("/:id").get(getNewsById).put(protect, updateNews).delete(protect, d
 // Social Engagement Routes
 router.post("/:id/like", protect, toggleLike);
 router.route("/:id/comments").get(getComments).post(protect, addComment);
+router.route("/:newsId/comments/:commentId")
+    .patch(protect, updateComment)
+    .delete(protect, deleteComment);
 
 module.exports = router;

@@ -297,6 +297,62 @@ const getComments = async (req, res) => {
     }
 };
 
+// @desc    Update a comment (owner, admin, or manage_news)
+// @route   PATCH /api/news/:newsId/comments/:commentId
+// @access  Private
+const updateComment = async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ message: "Content is required" });
+
+        const comment = await Comment.findById(req.params.commentId);
+        if (!comment) return res.status(404).json({ message: "Comment not found" });
+        if (comment.news.toString() !== req.params.newsId) {
+            return res.status(400).json({ message: "Comment does not belong to this article" });
+        }
+
+        const isOwner = comment.user.toString() === req.user._id.toString();
+        const isAdmin = req.user.role === "admin";
+        const hasManageNews = req.user.permissions && req.user.permissions.includes("manage_news");
+        if (!isOwner && !isAdmin && !hasManageNews) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
+        comment.content = content;
+        await comment.save();
+
+        const populated = await comment.populate("user", "name avatar");
+        res.json(populated);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Delete a comment (owner, admin, or manage_news)
+// @route   DELETE /api/news/:newsId/comments/:commentId
+// @access  Private
+const deleteComment = async (req, res) => {
+    try {
+        const comment = await Comment.findById(req.params.commentId);
+        if (!comment) return res.status(404).json({ message: "Comment not found" });
+        if (comment.news.toString() !== req.params.newsId) {
+            return res.status(400).json({ message: "Comment does not belong to this article" });
+        }
+
+        const isOwner = comment.user.toString() === req.user._id.toString();
+        const isAdmin = req.user.role === "admin";
+        const hasManageNews = req.user.permissions && req.user.permissions.includes("manage_news");
+        if (!isOwner && !isAdmin && !hasManageNews) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
+        await comment.deleteOne();
+        res.json({ message: "Comment removed" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     getNews,
     getNewsById,
@@ -305,5 +361,7 @@ module.exports = {
     deleteNews,
     toggleLike,
     addComment,
-    getComments
+    getComments,
+    updateComment,
+    deleteComment
 };
