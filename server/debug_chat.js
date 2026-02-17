@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Message = require("./models/Message");
 const User = require("./models/User"); // Register User model just in case
 
-const MONGO_URI = "mongodb://localhost:27017/university-app";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
 
 async function run() {
     try {

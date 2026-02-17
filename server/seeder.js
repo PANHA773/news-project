@@ -26,7 +26,7 @@ const seedDB = async () => {
 
         console.log("Data Destroyed...");
 
-        // Create Admin
+        // Create Admin login
         const user = new User({
             name: "Admin User",
             email: "pannha@admin.com",

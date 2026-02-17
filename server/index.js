@@ -1,4 +1,5 @@
 const express = require("express");
+
 const fs = require("fs");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -28,20 +29,33 @@ if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath });
 }
 
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,https://news-project-dq86.vercel.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+};
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: "http://localhost:5173", // Allow frontend
-        methods: ["GET", "POST"],
-    },
+    cors: corsOptions,
 });
 
 // Middleware
 app.use(express.json());
 // Parse URL-encoded bodies (for clients that send form data)
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cors(corsOptions));
 
 // Attach io to req
 app.use((req, res, next) => {
@@ -51,8 +65,12 @@ app.use((req, res, next) => {
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
+
+// const MONGO_URI = process.env.atlas_URL;
 // const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
-const MONGO_URI = process.env.atlas_URL ;
+
+
 
 mongoose
     .connect(MONGO_URI)
