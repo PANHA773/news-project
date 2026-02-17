@@ -29,8 +29,8 @@ const seedDB = async () => {
         // Create Admin
         const user = new User({
             name: "Admin User",
-            email: "admin@example.com",
-            password: "password123",
+            email: "pannha@admin.com",
+            password: "admin123",
             role: "admin",
             gender: "Male"
         });

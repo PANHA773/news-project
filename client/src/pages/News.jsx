@@ -13,7 +13,7 @@ const iconMap = {
 const News = () => {
     // ... existing state ...
     const { user, updateProfile } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [newsList, setNewsList] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -463,3 +463,4 @@ const News = () => {
 };
 
 export default News;
+

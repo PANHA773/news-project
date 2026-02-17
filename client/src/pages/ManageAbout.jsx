@@ -4,7 +4,7 @@ import { useNotification } from "../context/NotificationContext";
 import { Save, Upload, Plus, Trash2, Globe, Mail, Phone, MapPin, Info, Users, LayoutDashboard, Camera } from "lucide-react";
 
 const ManageAbout = () => {
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -500,3 +500,4 @@ const ManageAbout = () => {
 };
 
 export default ManageAbout;
+

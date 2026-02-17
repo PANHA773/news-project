@@ -9,7 +9,7 @@ const ArticleDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, updateProfile } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [news, setNews] = useState(null);
     const [comments, setComments] = useState([]);
     const [commentInput, setCommentInput] = useState("");
@@ -313,3 +313,4 @@ const ArticleDetail = () => {
 };
 
 export default ArticleDetail;
+

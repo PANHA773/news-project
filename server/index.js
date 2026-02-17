@@ -51,7 +51,8 @@ app.use((req, res, next) => {
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
+// const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/university-app";
+const MONGO_URI = process.env.atlas_URL ;
 
 mongoose
     .connect(MONGO_URI)

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 const ActivityLogs = () => {
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -253,3 +253,4 @@ const ActivityLogs = () => {
 };
 
 export default ActivityLogs;
+

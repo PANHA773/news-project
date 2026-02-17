@@ -5,7 +5,7 @@ import { Users, Trash2, Shield, ShieldAlert, Search, Mail, Calendar, UserCheck, 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 const ManageUsers = () => {
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -777,3 +777,4 @@ const ManageUsers = () => {
 };
 
 export default ManageUsers;
+

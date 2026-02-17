@@ -431,9 +431,9 @@ const Dashboard = () => {
                             friendRequests.map(fr => (
                                 <div key={fr._id} className="flex items-center justify-between p-3 rounded-lg hover:bg-[rgba(255,255,255,0.03)]">
                                     <div className="flex items-center gap-3">
-                                        <img src={fr.requester.avatar || '/default-avatar.png'} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                                        <img src={fr.requester?.avatar || '/default-avatar.png'} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
                                         <div>
-                                            <p className="text-sm font-medium text-gray-200">{fr.requester.name}</p>
+                                            <p className="text-sm font-medium text-gray-200">{fr.requester?.name || "Unknown user"}</p>
                                             <p className="text-xs text-gray-400">{fr.message || 'Wants to be your friend'}</p>
                                         </div>
                                     </div>

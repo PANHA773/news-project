@@ -8,7 +8,7 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const { login } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
     const navigate = useNavigate();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -110,3 +110,4 @@ const Login = () => {
 };
 
 export default Login;
+

@@ -10,7 +10,7 @@ const Register = () => {
     const [password, setPassword] = useState("");
     const [gender, setGender] = useState("Male");
     const { register } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
     const navigate = useNavigate();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -147,3 +147,4 @@ const Register = () => {
 };
 
 export default Register;
+

@@ -35,11 +35,8 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route element={<AdminRoute><Layout /></AdminRoute>}>
-                  <Route path="/" element={<Dashboard />} />
-                </Route>
                 <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-                  {/* <Route path="/" element={<News />} /> */}
+                  <Route path="/" element={<Dashboard />} />
                   <Route path="/news" element={<News />} />
                   <Route path="/news/:id" element={<ArticleDetail />} />
                   <Route path="/categories" element={<Categories />} />
@@ -51,6 +48,8 @@ function App() {
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/author/:id" element={<AuthorArticles />} />
                   <Route path="/about" element={<About />} />
+                </Route>
+                <Route element={<AdminRoute><Layout /></AdminRoute>}>
                   <Route path="/manage-about" element={<ManageAbout />} />
                   <Route path="/manage-users" element={<ManageUsers />} />
                   <Route path="/activities" element={<ActivityLogs />} />

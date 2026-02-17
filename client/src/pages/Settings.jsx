@@ -6,7 +6,7 @@ import api from "../api/axios";
 
 const Settings = () => {
     const { user, updateProfile } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [loading, setLoading] = useState(false);
     const [backupLoading, setBackupLoading] = useState(false);
     const [restoreLoading, setRestoreLoading] = useState(false);
@@ -288,3 +288,4 @@ const Settings = () => {
 };
 
 export default Settings;
+

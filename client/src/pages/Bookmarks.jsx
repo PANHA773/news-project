@@ -7,7 +7,7 @@ import { useNotification } from "../context/NotificationContext";
 
 const Bookmarks = () => {
     const { user, updateProfile } = useContext(AuthContext);
-    const { notify } = useNotification();
+    const notify = useNotification();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -132,3 +132,4 @@ const Bookmarks = () => {
 };
 
 export default Bookmarks;
+

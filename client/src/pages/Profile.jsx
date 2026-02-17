@@ -7,7 +7,7 @@ import api from "../api/axios";
 
 const Profile = () => {
     const { user, updateProfile } = useContext(AuthContext); // Use updateProfile to update local user state
-    const { notify } = useNotification();
+    const notify = useNotification();
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -327,3 +327,4 @@ const Profile = () => {
 };
 
 export default Profile;
+
