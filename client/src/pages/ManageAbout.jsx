@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../api/axios";
 import { useNotification } from "../context/NotificationContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 import { Save, Upload, Plus, Trash2, Globe, Mail, Phone, MapPin, Info, Users, LayoutDashboard, Camera } from "lucide-react";
 
 const ManageAbout = () => {
@@ -68,7 +69,7 @@ const ManageAbout = () => {
             const res = await api.post("/upload", data, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
-            setFormData(prev => ({ ...prev, logo: `http://localhost:5000${res.data}` }));
+            setFormData(prev => ({ ...prev, logo: toAbsoluteMediaUrl(res.data) }));
             notify.success("Logo uploaded!");
         } catch (error) {
             notify.error("Logo upload failed");
@@ -90,7 +91,7 @@ const ManageAbout = () => {
                 headers: { "Content-Type": "multipart/form-data" }
             });
             const newLeaders = [...formData.leaders];
-            newLeaders[activeLeaderIndex].image = `http://localhost:5000${res.data}`;
+            newLeaders[activeLeaderIndex].image = toAbsoluteMediaUrl(res.data);
             setFormData(prev => ({ ...prev, leaders: newLeaders }));
             notify.success("Leader image uploaded!");
         } catch (error) {

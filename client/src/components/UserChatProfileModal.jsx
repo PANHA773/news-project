@@ -1,4 +1,5 @@
 import { X, User, Mail, Shield, Info, Heart } from "lucide-react";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const UserChatProfileModal = ({ user, onClose, onMessage }) => {
     if (!user) return null;
@@ -22,15 +23,7 @@ const UserChatProfileModal = ({ user, onClose, onMessage }) => {
                     <div className="w-32 h-32 rounded-3xl bg-[#0f0f1a] border-4 border-[#0f0f1a] shadow-2xl overflow-hidden group">
                         {user.avatar ? (
                                 <img
-                                    src={(function(){
-                                        try {
-                                            const base = 'http://localhost:5000';
-                                            if (!user.avatar) return '';
-                                            if (user.avatar.startsWith('http')) return user.avatar;
-                                            if (user.avatar.startsWith('/')) return base + user.avatar;
-                                            return base + '/' + user.avatar;
-                                        } catch (e) { return ''; }
-                                    })()}
+                                    src={toAbsoluteMediaUrl(user.avatar)}
                                     alt={user.name}
                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

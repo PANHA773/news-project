@@ -1,5 +1,6 @@
 import { io } from "socket.io-client";
+import { API_ORIGIN } from "./config/urls";
 
-const socket = io( import.meta.env.VITE_API_URL || "http://localhost:5000/api");
+const socket = io(API_ORIGIN);
 
 export default socket;

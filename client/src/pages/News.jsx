@@ -4,6 +4,7 @@ import { Plus, Trash, Image as ImageIcon, Edit, Video as VideoIcon, Bookmark, Bo
 import { Link } from "react-router-dom";
 import AuthContext from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 // Icon mapping (Same as Categories.jsx)
 const iconMap = {
@@ -118,7 +119,7 @@ const News = () => {
                 headers: { "Content-Type": "multipart/form-data" }
             });
             // The backend returns a string starting with /uploads/
-            const fileUrl = `http://localhost:5000${res.data}`;
+            const fileUrl = toAbsoluteMediaUrl(res.data);
 
             if (type === 'document') {
                 setFormData(prev => ({

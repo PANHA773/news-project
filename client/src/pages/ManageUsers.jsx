@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 import { useNotification } from "../context/NotificationContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 import { Users, Trash2, Shield, ShieldAlert, Search, Mail, Calendar, UserCheck, PieChart as PieChartIcon, Activity, TrendingUp, Eye, X, Info, User as UserIcon, UserPlus, Check, ShieldCheck } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
@@ -190,7 +191,7 @@ const ManageUsers = () => {
                             <div className="md:col-span-1 space-y-6">
                                 <div className="w-full aspect-square rounded-3xl bg-gray-800 border-4 border-(--primary-glow)/20 overflow-hidden shrink-0 shadow-lg">
                                     {user.avatar ? (
-                                        <img src={`http://localhost:5000${user.avatar}`} alt="" className="w-full h-full object-cover" />
+                                        <img src={toAbsoluteMediaUrl(user.avatar)} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-4xl text-(--primary-glow) font-black bg-gradient-to-br from-gray-800 to-black uppercase">
                                             {user.name.charAt(0)}

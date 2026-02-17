@@ -5,6 +5,7 @@ import { Send, MessageSquare, Video, Phone, User as UserIcon, Edit, Trash2, Imag
 import CallModal from "../components/CallModal";
 import UserChatProfileModal from "../components/UserChatProfileModal";
 import { useSocket } from "../context/SocketContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const Chat = () => {
   const socket = useSocket();
@@ -364,7 +365,7 @@ const Chat = () => {
                 <div className="w-8 h-8 rounded-md bg-gray-800 overflow-hidden relative">
                   {f.avatar ? (
                     <img
-                      src={(function(){ try { const base='http://localhost:5000'; if (!f.avatar) return ''; if (f.avatar.startsWith('http')) return f.avatar; if (f.avatar.startsWith('/')) return base + f.avatar; return base + '/' + f.avatar; } catch(e){return ''} })()}
+                      src={toAbsoluteMediaUrl(f.avatar)}
                       alt={f.name}
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       className="w-full h-full object-cover"
@@ -404,7 +405,7 @@ const Chat = () => {
                           <div className="w-8 h-8 rounded-md bg-gray-800 overflow-hidden relative">
                             {u.avatar ? (
                               <img
-                                src={(function(){ try { const base='http://localhost:5000'; if (!u.avatar) return ''; if (u.avatar.startsWith('http')) return u.avatar; if (u.avatar.startsWith('/')) return base + u.avatar; return base + '/' + u.avatar; } catch(e){return ''} })()}
+                                src={toAbsoluteMediaUrl(u.avatar)}
                                 alt={u.name}
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                 className="w-full h-full object-cover"
@@ -550,13 +551,13 @@ const Chat = () => {
                     <div className="space-y-2">
                       {msg.image && (
                         <div className="rounded-lg overflow-hidden border border-white/10 shadow-lg">
-                          <img src={`http://localhost:5000${msg.image}`} alt="Shared" className="max-w-full h-auto object-cover hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => window.open(`http://localhost:5000${msg.image}`, '_blank')} />
+                          <img src={toAbsoluteMediaUrl(msg.image)} alt="Shared" className="max-w-full h-auto object-cover hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => window.open(toAbsoluteMediaUrl(msg.image), '_blank')} />
                         </div>
                       )}
                       {msg.video && (
                         <div className="rounded-lg overflow-hidden border border-white/10 shadow-lg bg-black">
                           <video controls className="max-w-full h-auto">
-                            <source src={`http://localhost:5000${msg.video}`} type="video/mp4" />
+                            <source src={toAbsoluteMediaUrl(msg.video)} type="video/mp4" />
                             Your browser does not support the video tag.
                           </video>
                         </div>
@@ -564,7 +565,7 @@ const Chat = () => {
                       {msg.audio && (
                         <div className="p-2 bg-white/5 rounded-xl border border-white/10 min-w-[200px]">
                           <audio controls className="w-full h-8 scale-90 origin-left">
-                            <source src={`http://localhost:5000${msg.audio}`} type="audio/webm" />
+                            <source src={toAbsoluteMediaUrl(msg.audio)} type="audio/webm" />
                             Your browser does not support the audio tag.
                           </audio>
                         </div>

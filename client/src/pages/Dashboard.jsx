@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { MessageSquare, Heart, Bell, LogIn, LogOut, UserPlus, FilePlus, FileEdit, Trash2, Shield, UserCircle, Calendar } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const timeAgo = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -20,12 +21,6 @@ const timeAgo = (date) => {
     interval = Math.floor(seconds / 60);
     if (interval >= 1) return interval + " minutes ago";
     return Math.floor(seconds) + " seconds ago";
-};
-
-const resolveMediaUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    return `http://localhost:5000${url}`;
 };
 
 const Dashboard = () => {
@@ -280,11 +275,11 @@ const Dashboard = () => {
                                         onClick={() => setSelectedStory(story)}
                                         className="min-w-[160px] h-44 rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] relative group"
                                     >
-                                        <img src={resolveMediaUrl(story.image)} alt="" className="w-full h-full object-cover" />
+                                        <img src={toAbsoluteMediaUrl(story.image)} alt="" className="w-full h-full object-cover" />
                                         <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
                                                 {story.user?.avatar ? (
-                                                    <img src={resolveMediaUrl(story.user.avatar)} alt="" className="w-full h-full object-cover" />
+                                                    <img src={toAbsoluteMediaUrl(story.user.avatar)} alt="" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full bg-[rgba(255,255,255,0.1)]" />
                                                 )}
@@ -538,7 +533,7 @@ const Dashboard = () => {
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-[2px] animate-fade-in">
                     <div className="bg-[#0f0f1a] rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full overflow-hidden">
                         <div className="relative">
-                            <img src={resolveMediaUrl(selectedStory.image)} alt="" className="w-full max-h-[70vh] object-cover" />
+                            <img src={toAbsoluteMediaUrl(selectedStory.image)} alt="" className="w-full max-h-[70vh] object-cover" />
                             <button
                                 onClick={() => setSelectedStory(null)}
                                 className="absolute top-3 right-3 px-2 py-1 rounded bg-black/60 text-white text-xs"

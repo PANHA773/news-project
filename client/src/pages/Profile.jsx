@@ -4,6 +4,7 @@ import { User, Save, Edit, Camera, SaveAll, Bookmark, Trash2, ExternalLink } fro
 import { useNotification } from "../context/NotificationContext";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const Profile = () => {
     const { user, updateProfile } = useContext(AuthContext); // Use updateProfile to update local user state
@@ -41,7 +42,7 @@ const Profile = () => {
             const res = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             });
-            const imageUrl = `http://localhost:5000${res.data}`;
+            const imageUrl = toAbsoluteMediaUrl(res.data);
             setAvatar(imageUrl);
             notify.success("Image uploaded! Don't forget to save changes.");
         } catch (error) {
