@@ -6,6 +6,14 @@ const StorySchema = new mongoose.Schema(
         image: { type: String, required: true },
         caption: { type: String, default: "" },
         expiresAt: { type: Date, required: true },
+        viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        comments: [
+            {
+                user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+                content: { type: String, required: true },
+                createdAt: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true }
 );

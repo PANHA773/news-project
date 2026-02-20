@@ -1,7 +1,9 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
+const { ensureUploadsSubdir } = require("../utils/uploads");
 
 const router = express.Router();
 
@@ -41,6 +43,34 @@ router.post("/", (req, res) => {
         // Everything went fine.
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const isProduction = process.env.NODE_ENV === "production";
+
+        if (!isProduction) {
+            const mediaSubdir = req.file.mimetype.startsWith("video/")
+                ? "videos"
+                : req.file.mimetype.startsWith("audio/")
+                    ? "audio"
+                    : req.file.mimetype === "application/pdf" ||
+                        req.file.mimetype === "application/msword" ||
+                        req.file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        ? "documents"
+                        : "images";
+
+            const uploadDir = ensureUploadsSubdir(mediaSubdir);
+            const ext = path.extname(req.file.originalname || "").toLowerCase();
+            const fileName = `media-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
+            const filePath = path.join(uploadDir, fileName);
+
+            fs.writeFile(filePath, req.file.buffer, (writeErr) => {
+                if (writeErr) {
+                    return res.status(500).json({ message: `Local upload failed: ${writeErr.message}` });
+                }
+
+                return res.json(`/uploads/${mediaSubdir}/${fileName}`);
+            });
+            return;
         }
 
         if (!isCloudinaryConfigured()) {

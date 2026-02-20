@@ -21,6 +21,8 @@ router.get("/", protect, async (req, res) => {
             user: { $in: friendIds },
         })
             .populate("user", "name email avatar")
+            .populate("viewers", "name avatar")
+            .populate("comments.user", "name avatar")
             .sort({ createdAt: -1 });
         res.json(stories);
     } catch (error) {
@@ -45,6 +47,59 @@ router.post("/", protect, async (req, res) => {
 
         const populated = await story.populate("user", "name email avatar");
         res.status(201).json(populated);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
+// @desc    View a story
+// @route   POST /api/stories/:id/view
+// @access  Private
+router.post("/:id/view", protect, async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        // Don't count owner's view or duplicate views
+        if (
+            story.user.toString() !== req.user._id.toString() &&
+            !story.viewers.includes(req.user._id)
+        ) {
+            story.viewers.push(req.user._id);
+            await story.save();
+        }
+
+        res.json(story.viewers);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
+// @desc    Comment on a story
+// @route   POST /api/stories/:id/comment
+// @access  Private
+router.post("/:id/comment", protect, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ message: "Content is required" });
+
+        const story = await Story.findById(req.params.id);
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        const newComment = {
+            user: req.user._id,
+            content,
+        };
+
+        story.comments.push(newComment);
+        await story.save();
+
+        // Populate the user of the new comment to return it
+        await story.populate("comments.user", "name avatar");
+
+        // Return the last comment (the one we just added)
+        const addedComment = story.comments[story.comments.length - 1];
+        res.status(201).json(addedComment);
     } catch (error) {
         res.status(500).json({ message: "Server Error" });
     }

@@ -130,11 +130,12 @@ const News = () => {
                 setFormData(prev => ({ ...prev, [type]: fileUrl }));
             }
 
-            setUploading(false);
         } catch (error) {
             console.error("Error uploading file", error);
+            const message = error?.response?.data?.message || "Failed to upload file";
+            notify.error(message);
+        } finally {
             setUploading(false);
-            alert("Failed to upload file");
         }
     }
 

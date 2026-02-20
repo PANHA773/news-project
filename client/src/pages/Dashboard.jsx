@@ -49,11 +49,15 @@ const Dashboard = () => {
         UPDATE_NEWS: <FileEdit className="w-4 h-4 text-orange-400" />,
         DELETE_NEWS: <Trash2 className="w-4 h-4 text-red-400" />,
         UPDATE_ROLE: <Shield className="w-4 h-4 text-yellow-400" />,
-        DELETE_USER: <Trash2 className="w-4 h-4 text-red-600" />,
         UPDATE_PROFILE: <UserCircle className="w-4 h-4 text-indigo-400" />,
         ADD_BOOKMARK: <Calendar className="w-4 h-4 text-pink-400" />,
         REMOVE_BOOKMARK: <Calendar className="w-4 h-4 text-gray-500" />
     };
+
+    const [viewers, setViewers] = useState([]);
+    const [comments, setComments] = useState([]);
+    const [newComment, setNewComment] = useState("");
+    const [showViewers, setShowViewers] = useState(false);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -206,6 +210,41 @@ const Dashboard = () => {
         }
     };
 
+    const handleViewStory = async (story) => {
+        setSelectedStory(story);
+        setComments(story.comments || []);
+        setViewers(story.viewers || []);
+        setShowViewers(false);
+        try {
+            if (story.user?._id !== currentUser?._id) {
+                await api.post(`/stories/${story._id}/view`);
+            }
+        } catch (error) {
+            console.error("View story error", error);
+        }
+    };
+
+    const handleAddComment = async () => {
+        if (!newComment.trim()) return;
+        try {
+            const res = await api.post(`/stories/${selectedStory._id}/comment`, { content: newComment });
+            const addedComment = res.data;
+            setComments((prev) => [...prev, addedComment]);
+            setNewComment("");
+            setStories((prev) =>
+                prev.map((s) =>
+                    s._id === selectedStory._id
+                        ? { ...s, comments: [...(s.comments || []), addedComment] }
+                        : s
+                )
+            );
+            notify.success("Comment added");
+        } catch (error) {
+            console.error("Add comment error", error);
+            notify.error("Failed to add comment");
+        }
+    };
+
     const Card = ({ icon: Icon, title, value, glowColor }) => (
         <div className={`relative overflow-hidden glass-card rounded-xl p-6 glow-border group`}>
             <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity`}>
@@ -272,7 +311,7 @@ const Dashboard = () => {
                                 {stories.map((story) => (
                                     <button
                                         key={story._id}
-                                        onClick={() => setSelectedStory(story)}
+                                        onClick={() => handleViewStory(story)}
                                         className="min-w-[160px] h-44 rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] relative group"
                                     >
                                         <img src={toAbsoluteMediaUrl(story.image)} alt="" className="w-full h-full object-cover" />
@@ -417,7 +456,7 @@ const Dashboard = () => {
                         )}
                     </div>
                 </div>
-                
+
                 {/* Friend Requests Panel */}
                 <div className="glass-card p-6 rounded-xl">
                     <h3 className="text-xl font-bold text-gray-100 mb-6 border-b border-[rgba(255,255,255,0.1)] pb-4">Friend Requests</h3>
@@ -530,30 +569,133 @@ const Dashboard = () => {
 
             {/* Story Viewer */}
             {selectedStory && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-[2px] animate-fade-in">
-                    <div className="bg-[#0f0f1a] rounded-2xl border border-white/10 shadow-2xl max-w-lg w-full overflow-hidden">
-                        <div className="relative">
-                            <img src={toAbsoluteMediaUrl(selectedStory.image)} alt="" className="w-full max-h-[70vh] object-cover" />
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-[#0f0f1a] rounded-2xl border border-white/10 shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row h-[80vh]">
+                        {/* Image Section */}
+                        <div className="relative flex-1 bg-black flex items-center justify-center">
+                            <img src={toAbsoluteMediaUrl(selectedStory.image)} alt="" className="max-w-full max-h-full object-contain" />
+                            <div className="absolute top-4 left-4 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20">
+                                    <img src={toAbsoluteMediaUrl(selectedStory.user?.avatar)} alt="" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="text-left bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
+                                    <div className="text-sm text-white font-semibold">{selectedStory.user?.name}</div>
+                                    <div className="text-[10px] text-gray-300">{timeAgo(selectedStory.createdAt)}</div>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => setSelectedStory(null)}
-                                className="absolute top-3 right-3 px-2 py-1 rounded bg-black/60 text-white text-xs"
+                                className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white hover:bg-white/20 transition backdrop-blur-md"
                             >
-                                Close
+                                <LogOut className="w-5 h-5" />
                             </button>
-                        </div>
-                        <div className="p-4 flex items-center justify-between gap-4">
-                            <div>
-                                <div className="text-sm font-semibold text-white">{selectedStory.user?.name}</div>
-                                <div className="text-xs text-gray-400">{selectedStory.caption || "No caption"}</div>
+                            <div className="absolute bottom-4 left-4 right-4">
+                                {selectedStory.caption && (
+                                    <div className="bg-black/40 p-3 rounded-xl backdrop-blur-md inline-block max-w-[80%]">
+                                        <p className="text-white text-sm">{selectedStory.caption}</p>
+                                    </div>
+                                )}
                             </div>
-                            {selectedStory.user?._id === currentUser?._id && (
-                                <button
-                                    onClick={() => removeStory(selectedStory._id)}
-                                    className="px-3 py-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
-                                >
-                                    Delete
-                                </button>
-                            )}
+                        </div>
+
+                        {/* Sidebar Section (Comments & Info) */}
+                        <div className="w-full md:w-80 bg-[#1a1a2e] flex flex-col border-l border-white/10">
+                            {/* Header Stats */}
+                            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => selectedStory.user?._id === currentUser?._id && setShowViewers(!showViewers)}
+                                        className={`flex items-center gap-2 text-sm ${selectedStory.user?._id === currentUser?._id ? 'hover:text-white cursor-pointer' : ''} text-gray-400`}
+                                        title={selectedStory.user?._id === currentUser?._id ? "View Viewers" : "Views"}
+                                    >
+                                        <Activity className="w-4 h-4" />
+                                        <span>{(viewers || []).length} views</span>
+                                    </button>
+                                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                                        <MessageSquare className="w-4 h-4" />
+                                        <span>{(comments || []).length}</span>
+                                    </div>
+                                </div>
+                                {selectedStory.user?._id === currentUser?._id && (
+                                    <button
+                                        onClick={() => removeStory(selectedStory._id)}
+                                        className="text-red-400 hover:text-red-300 transition"
+                                        title="Delete Story"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Content Area (Viewers or Comments) */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                {showViewers && selectedStory.user?._id === currentUser?._id ? (
+                                    <div>
+                                        <h4 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-wider">Viewers</h4>
+                                        {viewers.length > 0 ? (
+                                            viewers.map(viewer => (
+                                                <div key={viewer._id} className="flex items-center gap-3 mb-3 last:mb-0">
+                                                    <img src={toAbsoluteMediaUrl(viewer.avatar)} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                                    <span className="text-sm text-gray-300">{viewer.name}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center text-gray-500 text-sm py-4">No views yet</div>
+                                        )}
+                                        <button
+                                            onClick={() => setShowViewers(false)}
+                                            className="w-full mt-4 text-xs text-(--primary-glow) hover:underline text-center"
+                                        >
+                                            Back to comments
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {comments.length > 0 ? (
+                                            comments.map((comment, idx) => (
+                                                <div key={idx} className="flex gap-3">
+                                                    <img src={toAbsoluteMediaUrl(comment.user?.avatar)} className="w-8 h-8 rounded-full object-cover mt-1" alt="" />
+                                                    <div className="flex-1">
+                                                        <div className="bg-white/5 p-3 rounded-r-xl rounded-bl-xl">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-xs font-bold text-gray-300">{comment.user?.name}</span>
+                                                                <span className="text-[10px] text-gray-500">{timeAgo(comment.createdAt)}</span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-200 break-words">{comment.content}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full text-gray-500 opacity-50">
+                                                <MessageSquare className="w-12 h-12 mb-2" />
+                                                <p className="text-sm">No comments yet</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Comment Input */}
+                            <div className="p-4 border-t border-white/5 bg-[#141424]">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        placeholder="Type a comment..."
+                                        className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-(--primary-glow) outline-none transition-colors"
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                                    />
+                                    <button
+                                        onClick={handleAddComment}
+                                        disabled={!newComment.trim()}
+                                        className="bg-(--primary-glow) text-black p-2 rounded-lg hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <MessageSquare className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
