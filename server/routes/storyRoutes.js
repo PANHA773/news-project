@@ -75,6 +75,21 @@ router.post("/:id/view", protect, async (req, res) => {
     }
 });
 
+// @desc    Get comments for a story
+// @route   GET /api/stories/:id/comment
+// @access  Private
+router.get("/:id/comment", protect, async (req, res) => {
+    try {
+        const story = await Story.findById(req.params.id)
+            .populate("comments.user", "name avatar");
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        res.json(story.comments);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
 // @desc    Comment on a story
 // @route   POST /api/stories/:id/comment
 // @access  Private
