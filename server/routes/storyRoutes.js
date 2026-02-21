@@ -1,10 +1,97 @@
 const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const Story = require("../models/Story");
 const { protect } = require("../middleware/authMiddleware");
+const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
+const { ensureUploadsSubdir } = require("../utils/uploads");
 
 const router = express.Router();
 
 const getExpiryDate = () => new Date(Date.now() + 24 * 60 * 60 * 1000);
+const isProduction = process.env.NODE_ENV === "production";
+
+const storyUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file?.mimetype?.startsWith("image/") || file?.mimetype?.startsWith("video/")) {
+            cb(null, true);
+            return;
+        }
+        cb(new Error("Only image or video files are allowed"));
+    },
+});
+
+const parseStoryUpload = (req, res, next) => {
+    storyUpload.any()(req, res, (err) => {
+        if (!err) return next();
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ message: err.message || "Invalid upload payload" });
+    });
+};
+
+const getExtFromMime = (mime) => {
+    if (mime === "image/jpeg") return ".jpg";
+    if (mime === "image/png") return ".png";
+    if (mime === "image/webp") return ".webp";
+    if (mime === "image/gif") return ".gif";
+    if (mime === "video/mp4") return ".mp4";
+    if (mime === "video/webm") return ".webm";
+    if (mime === "video/x-matroska") return ".mkv";
+    if (mime === "video/quicktime") return ".mov";
+    return "";
+};
+
+const uploadStoryFile = async (file) => {
+    const isVideo = file?.mimetype?.startsWith("video/");
+    const mediaSubdir = isVideo ? "videos" : "images";
+
+    if (!isProduction) {
+        const uploadDir = ensureUploadsSubdir(mediaSubdir);
+        const ext = path.extname(file.originalname || "").toLowerCase() || getExtFromMime(file.mimetype);
+        const fileName = `story-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
+        const filePath = path.join(uploadDir, fileName);
+        await fs.promises.writeFile(filePath, file.buffer);
+        return `/uploads/${mediaSubdir}/${fileName}`;
+    }
+
+    if (!isCloudinaryConfigured()) {
+        const error = new Error("Cloudinary is not configured on the server");
+        error.status = 500;
+        throw error;
+    }
+
+    const uploadedUrl = await new Promise((resolve, reject) => {
+        const uploadOptions = {
+            folder: process.env.CLOUDINARY_FOLDER || "university-app",
+            resource_type: isVideo ? "video" : "image",
+            public_id: `story-${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+        };
+
+        const stream = cloudinary.uploader.upload_stream(uploadOptions, (uploadErr, result) => {
+            if (uploadErr) return reject(uploadErr);
+            resolve(result.secure_url || result.url);
+        });
+
+        stream.end(file.buffer);
+    });
+
+    return uploadedUrl;
+};
+
+const pickUploadedStoryFile = (files) => {
+    if (!Array.isArray(files) || files.length === 0) return null;
+    const preferredFields = ["video", "image", "media", "file", "story"];
+    for (const fieldName of preferredFields) {
+        const found = files.find((f) => f.fieldname === fieldName);
+        if (found) return found;
+    }
+    return files[0];
+};
 
 // @desc    Get active stories
 // @route   GET /api/stories
@@ -33,14 +120,33 @@ router.get("/", protect, async (req, res) => {
 // @desc    Create story
 // @route   POST /api/stories
 // @access  Private
-router.post("/", protect, async (req, res) => {
+router.post("/", protect, parseStoryUpload, async (req, res) => {
     try {
-        const { image, caption } = req.body;
-        if (!image) return res.status(400).json({ message: "Image is required" });
+        const imageUrl = typeof req.body?.image === "string" ? req.body.image.trim() : "";
+        const videoUrl = typeof req.body?.video === "string" ? req.body.video.trim() : "";
+        const caption = typeof req.body?.caption === "string" ? req.body.caption : "";
+
+        let finalImage = imageUrl;
+        let finalVideo = videoUrl;
+        const uploadedFile = pickUploadedStoryFile(req.files);
+
+        if (uploadedFile) {
+            const uploadedUrl = await uploadStoryFile(uploadedFile);
+            if (uploadedFile.mimetype.startsWith("video/")) {
+                finalVideo = finalVideo || uploadedUrl;
+            } else {
+                finalImage = finalImage || uploadedUrl;
+            }
+        }
+
+        if (!finalImage && !finalVideo) {
+            return res.status(400).json({ message: "Image or video is required" });
+        }
 
         const story = await Story.create({
             user: req.user._id,
-            image,
+            image: finalImage,
+            video: finalVideo,
             caption: caption || "",
             expiresAt: getExpiryDate(),
         });
@@ -48,6 +154,14 @@ router.post("/", protect, async (req, res) => {
         const populated = await story.populate("user", "name email avatar");
         res.status(201).json(populated);
     } catch (error) {
+        console.error("Create story error:", error);
+        if (error?.name === "ValidationError") {
+            const firstMessage = Object.values(error.errors || {})[0]?.message || "Invalid story data";
+            return res.status(400).json({ message: firstMessage });
+        }
+        if (error?.name === "CastError") {
+            return res.status(400).json({ message: "Invalid story media format" });
+        }
         res.status(500).json({ message: "Server Error" });
     }
 });

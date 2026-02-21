@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const {
     getNews,
     getNewsById,
@@ -14,9 +15,10 @@ const {
 const { protect, checkPermission } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+const parseNewsMultipart = multer({ storage: multer.memoryStorage() }).any();
 
 // Allow any authenticated user to create news; editing/deleting allowed to author or admin
-router.route("/").get(getNews).post(protect, createNews);
+router.route("/").get(getNews).post(protect, parseNewsMultipart, createNews);
 router.route("/:id").get(getNewsById).put(protect, updateNews).delete(protect, deleteNews);
 
 // Social Engagement Routes

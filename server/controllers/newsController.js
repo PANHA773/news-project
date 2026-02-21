@@ -36,7 +36,7 @@ const getNews = async (req, res) => {
 // @access  Private (Admin)
 const createNews = async (req, res) => {
     // Support requests where body might be undefined (e.g., wrong content-type)
-    const { title, content, image, video, documents, category, caption } = req.body || {};
+    const body = req.body || {};
 
     try {
         if (!req.user) {
@@ -59,9 +59,24 @@ const createNews = async (req, res) => {
             status = "published";
         }
 
-        const trimmedTitle = (title || "").trim();
-        const trimmedCaption = (caption || "").trim();
-        const trimmedContent = (content || "").trim();
+        const rawTitle =
+            body.title ??
+            body.headline ??
+            body.name ??
+            body.subject ??
+            "";
+        const rawContent =
+            body.content ??
+            body.body ??
+            body.description ??
+            body.text ??
+            body.caption ??
+            "";
+        const rawCaption = body.caption ?? "";
+
+        const trimmedTitle = String(rawTitle).trim();
+        const trimmedCaption = String(rawCaption).trim();
+        const trimmedContent = String(rawContent).trim();
 
         if (!trimmedTitle || !trimmedContent) {
             return res.status(400).json({ message: "Title and content are required" });
@@ -70,12 +85,27 @@ const createNews = async (req, res) => {
         const derivedTitle = trimmedTitle || trimmedCaption || "";
         const derivedContent = trimmedContent || trimmedCaption || "";
 
+        const image = typeof body.image === "string" ? body.image.trim() : "";
+        const video = typeof body.video === "string" ? body.video.trim() : "";
+        const category = body.category || body.categoryId || null;
+
+        let documents = body.documents || [];
+        if (typeof documents === "string") {
+            try {
+                const parsed = JSON.parse(documents);
+                documents = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                documents = [];
+            }
+        }
+        if (!Array.isArray(documents)) documents = [];
+
         const news = new News({
             title: derivedTitle,
             content: derivedContent,
-            image: image || "",
-            video: video || "",
-            documents: documents || [],
+            image,
+            video,
+            documents,
             category: category || null,
             author: req.user._id,
             status, // 👈 important

@@ -567,8 +567,8 @@ const ManageUsers = () => {
                         </div>
                     </div>
 
-                    <div className="w-full h-64">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="w-full h-64 min-w-0 min-h-[256px]">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
                             <PieChart>
                                 <Pie
                                     data={genderStats}

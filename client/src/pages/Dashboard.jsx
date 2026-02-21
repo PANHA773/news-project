@@ -138,7 +138,7 @@ const Dashboard = () => {
         fetchStats();
     }, [currentUser]);
 
-    const uploadStoryImage = async (file) => {
+    const uploadStoryMedia = async (file) => {
         const data = new FormData();
         data.append("image", file);
         const res = await api.post("/upload", data, {
@@ -149,20 +149,34 @@ const Dashboard = () => {
 
     const createStory = async () => {
         if (!storyFile) {
-            notify.error("Please select an image");
+            notify.error("Please select an image or video");
             return;
         }
+
+        const isImage = storyFile.type.startsWith("image/");
+        const isVideo = storyFile.type.startsWith("video/");
+        if (!isImage && !isVideo) {
+            notify.error("Only image or video files are allowed for stories");
+            return;
+        }
+
         setStoryUploading(true);
         try {
-            const imageUrl = await uploadStoryImage(storyFile);
-            const res = await api.post("/stories", { image: imageUrl, caption: storyCaption });
+            const mediaUrl = await uploadStoryMedia(storyFile);
+            const payload = {
+                caption: storyCaption,
+                // Keep image populated for compatibility with older backend logic.
+                image: mediaUrl,
+                video: isVideo ? mediaUrl : "",
+            };
+            const res = await api.post("/stories", payload);
             setStories((prev) => [res.data, ...prev]);
             setStoryFile(null);
             setStoryCaption("");
             notify.success("Story posted");
         } catch (error) {
             console.error("Create story error", error);
-            notify.error("Failed to post story");
+            notify.error(error?.response?.data?.message || "Failed to post story");
         } finally {
             setStoryUploading(false);
         }
@@ -264,6 +278,7 @@ const Dashboard = () => {
     );
 
     const chartColors = ['#00f3ff', '#bc13fe', '#00ff9d', '#ff0055', '#ffff00'];
+    const isVideoUrl = (url = "") => /\.(mp4|webm|mkv|mov)(\?.*)?$/i.test(url);
 
     const formatAction = (action) => {
         return action.replace(/_/g, ' ');
@@ -277,7 +292,7 @@ const Dashboard = () => {
             <div className="mt-8 glass-card p-6 rounded-xl border border-[rgba(255,255,255,0.05)]">
                 <div className="flex items-center justify-between gap-6 mb-4">
                     <h3 className="text-xl font-bold text-gray-100">Stories</h3>
-                    <div className="text-xs text-gray-400">Images expire in 24 hours</div>
+                    <div className="text-xs text-gray-400">Images and videos expire in 24 hours</div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-1">
@@ -285,7 +300,7 @@ const Dashboard = () => {
                         <div className="p-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)]">
                             <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,video/*"
                                 onChange={(e) => setStoryFile(e.target.files?.[0] || null)}
                                 className="block w-full text-xs text-gray-300"
                             />
@@ -308,28 +323,43 @@ const Dashboard = () => {
                     <div className="lg:col-span-2">
                         {stories.length > 0 ? (
                             <div className="flex gap-4 overflow-x-auto pb-2">
-                                {stories.map((story) => (
-                                    <button
-                                        key={story._id}
-                                        onClick={() => handleViewStory(story)}
-                                        className="min-w-[160px] h-44 rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] relative group"
-                                    >
-                                        <img src={toAbsoluteMediaUrl(story.image)} alt="" className="w-full h-full object-cover" />
-                                        <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
-                                                {story.user?.avatar ? (
-                                                    <img src={toAbsoluteMediaUrl(story.user.avatar)} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full bg-[rgba(255,255,255,0.1)]" />
-                                                )}
+                                {stories.map((story) => {
+                                    const isVideoStory = Boolean(story.video) || isVideoUrl(story.image);
+                                    const videoUrl = story.video || story.image;
+
+                                    return (
+                                        <button
+                                            key={story._id}
+                                            onClick={() => handleViewStory(story)}
+                                            className="min-w-[160px] h-44 rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.08)] relative group"
+                                        >
+                                            {isVideoStory ? (
+                                                <video
+                                                    src={toAbsoluteMediaUrl(videoUrl)}
+                                                    className="w-full h-full object-cover"
+                                                    muted
+                                                    playsInline
+                                                    preload="metadata"
+                                                />
+                                            ) : (
+                                                <img src={toAbsoluteMediaUrl(story.image)} alt="" className="w-full h-full object-cover" />
+                                            )}
+                                            <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+                                                    {story.user?.avatar ? (
+                                                        <img src={toAbsoluteMediaUrl(story.user.avatar)} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-[rgba(255,255,255,0.1)]" />
+                                                    )}
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="text-xs text-white font-semibold truncate">{story.user?.name}</div>
+                                                    <div className="text-[10px] text-gray-300">{timeAgo(story.createdAt)}</div>
+                                                </div>
                                             </div>
-                                            <div className="text-left">
-                                                <div className="text-xs text-white font-semibold truncate">{story.user?.name}</div>
-                                                <div className="text-[10px] text-gray-300">{timeAgo(story.createdAt)}</div>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="h-44 flex items-center justify-center text-gray-500 text-sm">
@@ -370,9 +400,9 @@ const Dashboard = () => {
             <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="glass-card p-6 rounded-xl relative overflow-hidden">
                     <h3 className="text-xl font-bold text-gray-100 mb-6 border-b border-[rgba(255,255,255,0.1)] pb-4">Articles per Category</h3>
-                    <div className="h-80 w-full">
+                    <div className="h-80 w-full min-w-0 min-h-[320px]">
                         {chartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
                                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
@@ -571,9 +601,19 @@ const Dashboard = () => {
             {selectedStory && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
                     <div className="bg-[#0f0f1a] rounded-2xl border border-white/10 shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row h-[80vh]">
-                        {/* Image Section */}
+                        {/* Media Section */}
                         <div className="relative flex-1 bg-black flex items-center justify-center">
-                            <img src={toAbsoluteMediaUrl(selectedStory.image)} alt="" className="max-w-full max-h-full object-contain" />
+                            {(selectedStory.video || isVideoUrl(selectedStory.image)) ? (
+                                <video
+                                    src={toAbsoluteMediaUrl(selectedStory.video || selectedStory.image)}
+                                    className="max-w-full max-h-full object-contain"
+                                    controls
+                                    autoPlay
+                                    playsInline
+                                />
+                            ) : (
+                                <img src={toAbsoluteMediaUrl(selectedStory.image)} alt="" className="max-w-full max-h-full object-contain" />
+                            )}
                             <div className="absolute top-4 left-4 flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20">
                                     <img src={toAbsoluteMediaUrl(selectedStory.user?.avatar)} alt="" className="w-full h-full object-cover" />

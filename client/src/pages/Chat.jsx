@@ -6,9 +6,11 @@ import CallModal from "../components/CallModal";
 import UserChatProfileModal from "../components/UserChatProfileModal";
 import { useSocket } from "../context/SocketContext";
 import { toAbsoluteMediaUrl } from "../config/urls";
+import { useNotification } from "../context/NotificationContext";
 
 const Chat = () => {
   const socket = useSocket();
+  const notify = useNotification();
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const { user } = useContext(AuthContext);
@@ -37,6 +39,7 @@ const Chat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
+  const audioStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   // Emoji + input ref
@@ -161,8 +164,36 @@ const Chat = () => {
   };
 
   const startRecording = async () => {
+    if (!window.isSecureContext) {
+      notify.error("Voice messages require HTTPS (or localhost) to access your microphone.");
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      notify.error("Your browser does not support microphone access.");
+      return;
+    }
+
+    if (typeof MediaRecorder === "undefined") {
+      notify.error("Your browser does not support voice recording.");
+      return;
+    }
+
     try {
+      if (navigator.permissions?.query) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: "microphone" });
+          if (permissionStatus.state === "denied") {
+            notify.error("Microphone permission is blocked. Enable it in browser site settings and try again.");
+            return;
+          }
+        } catch {
+          // Ignore permissions API errors; getUserMedia below still provides a definitive result.
+        }
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
 
@@ -178,7 +209,8 @@ const Chat = () => {
           url: URL.createObjectURL(audioBlob),
           file: audioFile
         });
-        stream.getTracks().forEach(track => track.stop());
+        audioStreamRef.current?.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
       };
 
       mediaRecorderRef.current.start();
@@ -189,6 +221,19 @@ const Chat = () => {
       }, 1000);
     } catch (err) {
       console.error("Error accessing microphone", err);
+      if (err?.name === "NotAllowedError") {
+        notify.error("Microphone access was denied. Please allow permission and try again.");
+        return;
+      }
+      if (err?.name === "NotFoundError") {
+        notify.error("No microphone was found on this device.");
+        return;
+      }
+      if (err?.name === "NotReadableError") {
+        notify.error("Microphone is busy or unavailable. Close other apps using it and try again.");
+        return;
+      }
+      notify.error("Could not start voice recording. Please try again.");
     }
   };
 
@@ -197,8 +242,24 @@ const Chat = () => {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(timerRef.current);
+      timerRef.current = null;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (mediaRecorderRef.current?.state && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+    };
+  }, []);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
