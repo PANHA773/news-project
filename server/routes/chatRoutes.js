@@ -160,4 +160,12 @@ router.get("/conversation/:userId", protect, async (req, res) => {
     }
 });
 
+router.post('/CALL', protect, (req, res) => {
+    res.status(200).json({ message: 'Call route placeholder' });
+});
+
+router.post('/VIDEO_CALL', protect, (req, res) => {
+    res.status(200).json({ message: 'Video call route placeholder' });
+});
+
 module.exports = router;
