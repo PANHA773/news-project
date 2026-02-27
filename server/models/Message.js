@@ -22,6 +22,10 @@ const messageSchema = new mongoose.Schema({
     image: { type: String, default: "" },
     video: { type: String, default: "" },
     audio: { type: String, default: "" },
+    isAnnouncement: {
+        type: Boolean,
+        default: false,
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Message", messageSchema);

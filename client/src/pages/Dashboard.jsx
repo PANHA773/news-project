@@ -2,10 +2,11 @@ import { useEffect, useState, useContext } from "react";
 import api from "../api/axios";
 import { FileText, Tags, TrendingUp, Users, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { MessageSquare, Heart, Bell, LogIn, LogOut, UserPlus, FilePlus, FileEdit, Trash2, Shield, UserCircle, Calendar } from "lucide-react";
+import { MessageSquare, Heart, Bell, LogIn, LogOut, UserPlus, FilePlus, FileEdit, Trash2, Shield, UserCircle, Calendar, Megaphone } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 import { toAbsoluteMediaUrl } from "../config/urls";
+import { useSocket } from "../context/SocketContext";
 
 const timeAgo = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -26,6 +27,7 @@ const timeAgo = (date) => {
 const Dashboard = () => {
     const { user: currentUser } = useContext(AuthContext);
     const notify = useNotification();
+    const socket = useSocket();
     const [stats, setStats] = useState({ news: 0, categories: 0, totalViews: 0, activeAuthors: 0 });
     const [chartData, setChartData] = useState([]);
     const [notifications, setNotifications] = useState([]);
@@ -58,6 +60,9 @@ const Dashboard = () => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [showViewers, setShowViewers] = useState(false);
+    const [announcements, setAnnouncements] = useState([]);
+    const [broadcastMessage, setBroadcastMessage] = useState("");
+    const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -137,6 +142,56 @@ const Dashboard = () => {
         };
         fetchStats();
     }, [currentUser]);
+
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const loadAnnouncements = async () => {
+            try {
+                const { data } = await api.get("/chat/announcements");
+                setAnnouncements(data || []);
+            } catch (error) {
+                console.error("Error fetching announcements", error);
+            }
+        };
+
+        loadAnnouncements();
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleAnnouncement = (message) => {
+            if (!message?.isAnnouncement) return;
+            setAnnouncements((prev) => {
+                const exists = prev.some((item) => item._id === message._id);
+                return exists ? prev : [message, ...prev];
+            });
+        };
+
+        socket.on("announcement_message", handleAnnouncement);
+        return () => socket.off("announcement_message", handleAnnouncement);
+    }, [socket]);
+
+    const sendBroadcast = async () => {
+        if (!broadcastMessage.trim()) return;
+
+        setSendingBroadcast(true);
+        try {
+            const { data } = await api.post("/chat/announcements", { content: broadcastMessage });
+            setAnnouncements((prev) => {
+                const exists = prev.some((item) => item._id === data._id);
+                return exists ? prev : [data, ...prev];
+            });
+            setBroadcastMessage("");
+            notify.success("Announcement sent to all users");
+        } catch (error) {
+            console.error("Broadcast failed", error);
+            notify.error(error?.response?.data?.message || "Failed to send announcement");
+        } finally {
+            setSendingBroadcast(false);
+        }
+    };
 
     const uploadStoryMedia = async (file) => {
         const data = new FormData();
@@ -288,6 +343,52 @@ const Dashboard = () => {
         <div>
             <h2 className="text-3xl font-bold tracking-tight glow-text text-white">Dashboard Overview</h2>
             <p className="text-gray-400 mt-2">Welcome back, here's what's happening today.</p>
+
+            <div className="mt-8 glass-card p-6 rounded-xl border border-[rgba(255,255,255,0.05)]">
+                <div className="flex items-center gap-3 mb-4">
+                    <Megaphone className="w-5 h-5 text-(--primary-glow)" />
+                    <h3 className="text-xl font-bold text-gray-100">Admin Broadcasts</h3>
+                </div>
+
+                {currentUser?.role === "admin" && (
+                    <div className="mb-5">
+                        <div className="flex gap-2">
+                            <textarea
+                                value={broadcastMessage}
+                                onChange={(e) => setBroadcastMessage(e.target.value)}
+                                rows="2"
+                                placeholder="Share an update with all users..."
+                                className="flex-1 px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.1)] text-white text-sm outline-none focus:border-(--primary-glow)"
+                            />
+                            <button
+                                onClick={sendBroadcast}
+                                disabled={sendingBroadcast || !broadcastMessage.trim()}
+                                className="px-4 py-2 rounded-lg bg-(--primary-glow) text-black font-semibold hover:brightness-110 transition disabled:opacity-60"
+                            >
+                                {sendingBroadcast ? "Sending..." : "Broadcast"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {announcements.length > 0 ? (
+                        announcements.map((item) => (
+                            <div key={item._id} className="p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]">
+                                <div className="flex items-center justify-between mb-1">
+                                    <p className="text-sm text-cyan-300 font-semibold">
+                                        {item.sender?.name || "Admin"}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{timeAgo(item.createdAt)}</p>
+                                </div>
+                                <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{item.content}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-gray-500">No admin broadcasts yet.</p>
+                    )}
+                </div>
+            </div>
 
             <div className="mt-8 glass-card p-6 rounded-xl border border-[rgba(255,255,255,0.05)]">
                 <div className="flex items-center justify-between gap-6 mb-4">

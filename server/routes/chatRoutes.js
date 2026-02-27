@@ -1,6 +1,8 @@
 const express = require("express");
 const Message = require("../models/Message");
-const { protect } = require("../middleware/authMiddleware");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
+const { protect, admin } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 // @desc    Get all public chat messages
@@ -16,6 +18,74 @@ router.get("/", protect, async (req, res) => {
         res.json(validMessages);
     } catch (error) {
         console.error("Error in GET /api/chat:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Get admin announcements for all users
+// @route   GET /api/chat/announcements
+// @access  Private
+router.get("/announcements", protect, async (req, res) => {
+    try {
+        const announcements = await Message.find({ isAnnouncement: true })
+            .populate("sender", "name email avatar bio gender role")
+            .sort({ createdAt: -1 });
+
+        const validAnnouncements = announcements.filter(msg => msg.sender);
+        res.json(validAnnouncements);
+    } catch (error) {
+        console.error("Error in GET /api/chat/announcements:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Admin broadcast announcement to all users
+// @route   POST /api/chat/announcements
+// @access  Private/Admin
+router.post("/announcements", protect, admin, async (req, res) => {
+    try {
+        const { content } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: "Content is required" });
+        }
+
+        const newAnnouncement = await Message.create({
+            sender: req.user._id,
+            recipient: null,
+            content: content.trim(),
+            isAnnouncement: true,
+        });
+
+        const populated = await newAnnouncement.populate("sender", "name email avatar bio gender role");
+
+        const users = await User.find({ _id: { $ne: req.user._id } }).select("_id role");
+        const targetUsers = users.filter((u) => u.role !== "admin");
+
+        if (targetUsers.length > 0) {
+            await Notification.insertMany(
+                targetUsers.map((u) => ({
+                    recipient: u._id,
+                    sender: req.user._id,
+                    type: "system",
+                    message: `Admin announcement: ${content.trim().slice(0, 120)}`,
+                    link: "/",
+                }))
+            );
+        }
+
+        if (req.io) {
+            req.io.emit("announcement_message", populated);
+            req.io.emit("new_chat_notification", {
+                senderName: req.user.name || "Admin",
+                content: content.trim(),
+                type: "announcement",
+            });
+        }
+
+        res.status(201).json(populated);
+    } catch (error) {
+        console.error("Error in POST /api/chat/announcements:", error);
         res.status(500).json({ message: error.message });
     }
 });
