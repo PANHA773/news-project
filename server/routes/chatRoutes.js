@@ -90,6 +90,67 @@ router.post("/announcements", protect, admin, async (req, res) => {
     }
 });
 
+// @desc    Admin edit an announcement
+// @route   PATCH /api/chat/announcements/:id
+// @access  Private/Admin
+router.patch("/announcements/:id", protect, admin, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: "Content is required" });
+        }
+
+        const announcement = await Message.findById(req.params.id);
+        if (!announcement) {
+            return res.status(404).json({ message: "Announcement not found" });
+        }
+        if (!announcement.isAnnouncement) {
+            return res.status(400).json({ message: "Message is not an announcement" });
+        }
+
+        announcement.content = content.trim();
+        announcement.isEdited = true;
+        await announcement.save();
+
+        const populated = await announcement.populate("sender", "name email avatar bio gender role");
+
+        if (req.io) {
+            req.io.emit("announcement_edited", populated);
+        }
+
+        res.json(populated);
+    } catch (error) {
+        console.error("Error in PATCH /api/chat/announcements/:id:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Admin delete an announcement
+// @route   DELETE /api/chat/announcements/:id
+// @access  Private/Admin
+router.delete("/announcements/:id", protect, admin, async (req, res) => {
+    try {
+        const announcement = await Message.findById(req.params.id);
+        if (!announcement) {
+            return res.status(404).json({ message: "Announcement not found" });
+        }
+        if (!announcement.isAnnouncement) {
+            return res.status(400).json({ message: "Message is not an announcement" });
+        }
+
+        await announcement.deleteOne();
+
+        if (req.io) {
+            req.io.emit("announcement_deleted", req.params.id);
+        }
+
+        res.json({ message: "Announcement removed" });
+    } catch (error) {
+        console.error("Error in DELETE /api/chat/announcements/:id:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @desc    Get users who have a private conversation with the current user
 // @route   GET /api/chat/conversations
 // @access  Private

@@ -63,6 +63,10 @@ const Dashboard = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [broadcastMessage, setBroadcastMessage] = useState("");
     const [sendingBroadcast, setSendingBroadcast] = useState(false);
+    const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
+    const [editAnnouncementContent, setEditAnnouncementContent] = useState("");
+    const [savingAnnouncementId, setSavingAnnouncementId] = useState(null);
+    const [deletingAnnouncementId, setDeletingAnnouncementId] = useState(null);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -169,8 +173,26 @@ const Dashboard = () => {
             });
         };
 
+        const handleAnnouncementEdited = (updatedMessage) => {
+            if (!updatedMessage?.isAnnouncement) return;
+            setAnnouncements((prev) => prev.map((item) => (
+                item._id === updatedMessage._id ? updatedMessage : item
+            )));
+        };
+
+        const handleAnnouncementDeleted = (id) => {
+            setAnnouncements((prev) => prev.filter((item) => item._id !== id));
+        };
+
         socket.on("announcement_message", handleAnnouncement);
-        return () => socket.off("announcement_message", handleAnnouncement);
+        socket.on("announcement_edited", handleAnnouncementEdited);
+        socket.on("announcement_deleted", handleAnnouncementDeleted);
+
+        return () => {
+            socket.off("announcement_message", handleAnnouncement);
+            socket.off("announcement_edited", handleAnnouncementEdited);
+            socket.off("announcement_deleted", handleAnnouncementDeleted);
+        };
     }, [socket]);
 
     const sendBroadcast = async () => {
@@ -190,6 +212,56 @@ const Dashboard = () => {
             notify.error(error?.response?.data?.message || "Failed to send announcement");
         } finally {
             setSendingBroadcast(false);
+        }
+    };
+
+    const startAnnouncementEdit = (item) => {
+        setEditingAnnouncementId(item._id);
+        setEditAnnouncementContent(item.content || "");
+    };
+
+    const cancelAnnouncementEdit = () => {
+        setEditingAnnouncementId(null);
+        setEditAnnouncementContent("");
+    };
+
+    const saveAnnouncementEdit = async (id) => {
+        if (!editAnnouncementContent.trim()) {
+            notify.error("Announcement content is required");
+            return;
+        }
+
+        setSavingAnnouncementId(id);
+        try {
+            const { data } = await api.patch(`/chat/announcements/${id}`, {
+                content: editAnnouncementContent,
+            });
+            setAnnouncements((prev) => prev.map((item) => (item._id === data._id ? data : item)));
+            cancelAnnouncementEdit();
+            notify.success("Announcement updated");
+        } catch (error) {
+            console.error("Announcement update failed", error);
+            notify.error(error?.response?.data?.message || "Failed to update announcement");
+        } finally {
+            setSavingAnnouncementId(null);
+        }
+    };
+
+    const deleteAnnouncement = async (id) => {
+        const ok = window.confirm("Delete this admin broadcast?");
+        if (!ok) return;
+
+        setDeletingAnnouncementId(id);
+        try {
+            await api.delete(`/chat/announcements/${id}`);
+            setAnnouncements((prev) => prev.filter((item) => item._id !== id));
+            if (editingAnnouncementId === id) cancelAnnouncementEdit();
+            notify.success("Announcement deleted");
+        } catch (error) {
+            console.error("Announcement delete failed", error);
+            notify.error(error?.response?.data?.message || "Failed to delete announcement");
+        } finally {
+            setDeletingAnnouncementId(null);
         }
     };
 
@@ -376,12 +448,65 @@ const Dashboard = () => {
                         announcements.map((item) => (
                             <div key={item._id} className="p-3 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)]">
                                 <div className="flex items-center justify-between mb-1">
-                                    <p className="text-sm text-cyan-300 font-semibold">
-                                        {item.sender?.name || "Admin"}
-                                    </p>
-                                    <p className="text-xs text-gray-500">{timeAgo(item.createdAt)}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm text-cyan-300 font-semibold">
+                                            {item.sender?.name || "Admin"}
+                                        </p>
+                                        {item.isEdited && (
+                                            <span className="text-[10px] text-gray-500 italic">(edited)</span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <p className="text-xs text-gray-500">{timeAgo(item.createdAt)}</p>
+                                        {currentUser?.role === "admin" && (
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => startAnnouncementEdit(item)}
+                                                    className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-blue-400 transition"
+                                                    title="Edit broadcast"
+                                                    disabled={savingAnnouncementId === item._id || deletingAnnouncementId === item._id}
+                                                >
+                                                    <FileEdit className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteAnnouncement(item._id)}
+                                                    className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-red-400 transition"
+                                                    title="Delete broadcast"
+                                                    disabled={deletingAnnouncementId === item._id}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{item.content}</p>
+                                {editingAnnouncementId === item._id ? (
+                                    <div className="space-y-2 mt-2">
+                                        <textarea
+                                            value={editAnnouncementContent}
+                                            onChange={(e) => setEditAnnouncementContent(e.target.value)}
+                                            rows="3"
+                                            className="w-full px-3 py-2 rounded-lg bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.1)] text-white text-sm outline-none focus:border-(--primary-glow)"
+                                        />
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={cancelAnnouncementEdit}
+                                                className="px-3 py-1 rounded text-xs text-gray-300 hover:text-white hover:bg-white/10 transition"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => saveAnnouncementEdit(item._id)}
+                                                disabled={savingAnnouncementId === item._id || !editAnnouncementContent.trim()}
+                                                className="px-3 py-1 rounded text-xs bg-(--primary-glow) text-black font-semibold hover:brightness-110 transition disabled:opacity-60"
+                                            >
+                                                {savingAnnouncementId === item._id ? "Saving..." : "Save"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{item.content}</p>
+                                )}
                             </div>
                         ))
                     ) : (
