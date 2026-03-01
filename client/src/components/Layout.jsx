@@ -3,6 +3,7 @@ import { Outlet, Link } from "react-router-dom";
 import { Menu, User as UserIcon } from "lucide-react";
 import Sidebar from "./Sidebar";
 import AuthContext from "../context/AuthContext";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -35,7 +36,7 @@ const Layout = () => {
                             <div className="relative">
                                 <div className="w-10 h-10 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(0,243,255,0.2)] border border-(--primary-glow)/30 bg-[var(--bg-surface)] flex items-center justify-center group-hover:border-(--primary-glow) transition-all">
                                     {user?.avatar ? (
-                                        <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                                        <img src={toAbsoluteMediaUrl(user.avatar)} alt="" className="w-full h-full object-cover" />
                                     ) : (
                                         <UserIcon className="w-5 h-5 text-gray-500" />
                                     )}

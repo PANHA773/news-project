@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import api from "../api/axios";
-import { Plus, Trash, Tag, Edit, PenLine, ShieldAlert, Globe, Cpu, Activity, Heart, Music, Film, Mic, Briefcase, GraduationCap, FlaskConical, Gamepad2, Utensils, Plane, Home } from "lucide-react";
+import { Plus, Trash, Tag, Edit, ShieldAlert, Globe, Cpu, Activity, Heart, Music, Film, Mic, Briefcase, GraduationCap, FlaskConical, Gamepad2, Utensils, Plane, Home } from "lucide-react";
+import AuthContext from "../context/AuthContext";
 
 // Icon mapping
 const iconMap = {
@@ -8,6 +9,8 @@ const iconMap = {
 };
 
 const Categories = () => {
+    const { user } = useContext(AuthContext);
+    const isAdmin = user?.role?.toLowerCase() === "admin";
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -32,6 +35,7 @@ const Categories = () => {
     };
 
     const openModal = (category = null) => {
+        if (!isAdmin) return;
         setEditingCategory(category);
         setName(category ? category.name : "");
         setSelectedIcon(category ? (category.icon || "Tag") : "Tag");
@@ -40,6 +44,7 @@ const Categories = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!isAdmin) return;
         try {
             if (editingCategory) {
                 await api.put(`/categories/${editingCategory._id}`, { name, icon: selectedIcon });
@@ -57,10 +62,12 @@ const Categories = () => {
     };
 
     const confirmDelete = (category) => {
+        if (!isAdmin) return;
         setDeleteConfirmCategory(category);
     };
 
     const handleDelete = async () => {
+        if (!isAdmin) return;
         if (!deleteConfirmCategory) return;
         try {
             await api.delete(`/categories/${deleteConfirmCategory._id}`);
@@ -145,15 +152,21 @@ const Categories = () => {
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
                     <h2 className="text-3xl font-bold glow-text text-white">Categories</h2>
-                    <p className="text-gray-400 mt-1">Organize news content with tags.</p>
+                    <p className="text-gray-400 mt-1">
+                        {isAdmin
+                            ? "Organize news content with tags."
+                            : "Browse available categories. Only admins can manage categories."}
+                    </p>
                 </div>
-                <button
-                    onClick={() => openModal()}
-                    className="flex items-center px-6 py-2.5 text-black bg-(--primary-glow) rounded-lg hover:brightness-110 shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all font-bold"
-                >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Add Category
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={() => openModal()}
+                        className="flex items-center px-6 py-2.5 text-black bg-(--primary-glow) rounded-lg hover:brightness-110 shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all font-bold"
+                    >
+                        <Plus className="w-5 h-5 mr-2" />
+                        Add Category
+                    </button>
+                )}
             </div>
 
             <div className="glass-card rounded-xl shadow-lg border border-[rgba(255,255,255,0.05)] overflow-hidden">
@@ -161,12 +174,14 @@ const Categories = () => {
                     <thead className="bg-[rgba(255,255,255,0.03)] border-b border-[rgba(255,255,255,0.05)]">
                         <tr>
                             <th className="px-6 py-4 text-xs font-bold text-(--secondary-glow) uppercase tracking-wider">Category Name</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-(--secondary-glow) uppercase tracking-wider">Actions</th>
+                            {isAdmin && (
+                                <th className="px-6 py-4 text-right text-xs font-bold text-(--secondary-glow) uppercase tracking-wider">Actions</th>
+                            )}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
                         {loading ? (
-                            <tr><td colSpan="2" className="text-center py-8 text-gray-500">Loading categories...</td></tr>
+                            <tr><td colSpan={isAdmin ? 2 : 1} className="text-center py-8 text-gray-500">Loading categories...</td></tr>
                         ) : (
                             categories.map((category) => (
                                 <tr key={category._id} className="hover:bg-[rgba(255,255,255,0.03)] transition-colors group">
@@ -176,14 +191,16 @@ const Categories = () => {
                                         </div>
                                         {category.name}
                                     </td>
-                                    <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                                        <button onClick={() => openModal(category)} className="text-gray-500 hover:text-(--primary-glow) transition-colors p-2 hover:bg-[rgba(0,243,255,0.1)] rounded-lg">
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => confirmDelete(category)} className="text-gray-500 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg">
-                                            <Trash className="w-4 h-4" />
-                                        </button>
-                                    </td>
+                                    {isAdmin && (
+                                        <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
+                                            <button onClick={() => openModal(category)} className="text-gray-500 hover:text-(--primary-glow) transition-colors p-2 hover:bg-[rgba(0,243,255,0.1)] rounded-lg">
+                                                <Edit className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => confirmDelete(category)} className="text-gray-500 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg">
+                                                <Trash className="w-4 h-4" />
+                                            </button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         )}
@@ -192,7 +209,7 @@ const Categories = () => {
             </div>
 
             {/* Modal */}
-            {showModal && (
+            {isAdmin && showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/80 backdrop-blur-sm p-4">
                     <div className="glass-card rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden animate-fade-in-up border border-[rgba(255,255,255,0.1)]">
                         <div className="px-8 py-6 border-b border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.02)]">
@@ -235,7 +252,7 @@ const Categories = () => {
                 </div>
             )}
 
-            {deleteConfirmCategory && (
+            {isAdmin && deleteConfirmCategory && (
                 <DeleteConfirmModal
                     category={deleteConfirmCategory}
                     onConfirm={handleDelete}

@@ -1,7 +1,16 @@
 import { createContext, useState, useEffect } from "react";
 import api from "../api/axios";
+import { toAbsoluteMediaUrl } from "../config/urls";
 
 const AuthContext = createContext();
+
+const normalizeUserMedia = (userData) => {
+    if (!userData) return userData;
+    return {
+        ...userData,
+        avatar: toAbsoluteMediaUrl(userData.avatar),
+    };
+};
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -16,7 +25,7 @@ export const AuthProvider = ({ children }) => {
                     const { data } = await api.get("/users/profile", {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setUser({ ...data, token });
+                    setUser({ ...normalizeUserMedia(data), token });
                 } catch (error) {
                     console.error("Auth check failed", error);
                     localStorage.removeItem("token");
@@ -35,18 +44,18 @@ export const AuthProvider = ({ children }) => {
         const profileRes = await api.get("/users/profile", {
             headers: { Authorization: `Bearer ${data.token}` }
         });
-        setUser({ ...profileRes.data, token: data.token });
+        setUser({ ...normalizeUserMedia(profileRes.data), token: data.token });
     };
 
     const register = async (name, email, password, gender) => {
         const { data } = await api.post("/auth/register", { name, email, password, gender });
         localStorage.setItem("token", data.token);
-        setUser(data);
+        setUser(normalizeUserMedia(data));
     };
 
     const updateProfile = (userData, token) => {
         if (token) localStorage.setItem("token", token);
-        setUser(userData);
+        setUser(normalizeUserMedia(userData));
     };
 
     const logout = () => {

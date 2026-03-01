@@ -1,0 +1,32 @@
+flowchart TD
+    A[User opens app] --> B[AuthProvider checks localStorage token]
+    B -->|Token exists| C[GET /api/users/profile with Bearer token]
+    B -->|No token| L[Go to /login]
+
+    C -->|Token valid| D[Set user in context]
+    C -->|Token invalid| E[Remove token] --> L
+
+    L --> F[Submit login/register/social login]
+    F --> G[POST /api/auth/login or /register or /google or /facebook]
+    G --> H[Server validates credentials/provider]
+    H -->|Success| I[Generate JWT 30d + return user/token]
+    H -->|Fail| J[401/400 error]
+
+    I --> K[Client stores token in localStorage]
+    K --> D
+
+    D --> M[User requests protected page/API]
+    M --> N[Axios adds Authorization: Bearer token]
+    N --> O[protect middleware verifies JWT and loads req.user]
+    O -->|Invalid/missing token| P[401 Not authorized]
+    O -->|Valid token| Q{Role/Permission check}
+    Q -->|admin route| R[admin middleware]
+    Q -->|permission route| S[checkPermission middleware]
+    Q -->|private only| T[Allow]
+
+    R -->|admin| T
+    R -->|not admin| U[401]
+    S -->|has permission or admin| T
+    S -->|missing permission| V[403]
+
+    T --> W[Controller runs and returns data]
