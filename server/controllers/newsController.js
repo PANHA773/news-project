@@ -2,6 +2,43 @@ const News = require("../models/News");
 const Comment = require("../models/Comment");
 const Notification = require("../models/Notification");
 const logActivity = require("../utils/activityLogger");
+const {
+    deleteCloudinaryByUrl,
+    deleteCloudinaryMany,
+    extractDocumentUrls,
+} = require("../utils/cloudinaryMedia");
+
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+const parseDocuments = (value) => {
+    let documents = value;
+
+    if (typeof documents === "string") {
+        try {
+            const parsed = JSON.parse(documents);
+            documents = Array.isArray(parsed) ? parsed : [];
+        } catch (_error) {
+            documents = [];
+        }
+    }
+
+    if (!Array.isArray(documents)) return [];
+
+    return documents
+        .map((doc) => {
+            if (typeof doc === "string") {
+                const trimmed = doc.trim();
+                return trimmed ? { name: "", url: trimmed } : null;
+            }
+
+            if (!doc || typeof doc !== "object") return null;
+            const name = typeof doc.name === "string" ? doc.name.trim() : "";
+            const url = typeof doc.url === "string" ? doc.url.trim() : "";
+            if (!url) return null;
+            return { name, url };
+        })
+        .filter(Boolean);
+};
 
 
 // @desc    Get all news
@@ -89,16 +126,7 @@ const createNews = async (req, res) => {
         const video = typeof body.video === "string" ? body.video.trim() : "";
         const category = body.category || body.categoryId || null;
 
-        let documents = body.documents || [];
-        if (typeof documents === "string") {
-            try {
-                const parsed = JSON.parse(documents);
-                documents = Array.isArray(parsed) ? parsed : [];
-            } catch (e) {
-                documents = [];
-            }
-        }
-        if (!Array.isArray(documents)) documents = [];
+        const documents = parseDocuments(body.documents || []);
 
         const news = new News({
             title: derivedTitle,
@@ -162,7 +190,7 @@ const createNews = async (req, res) => {
 // @route   PUT /api/news/:id
 // @access  Private (Admin)
 const updateNews = async (req, res) => {
-    const { title, content, image, video, documents, category } = req.body;
+    const body = req.body || {};
 
     try {
         const news = await News.findById(req.params.id);
@@ -176,14 +204,59 @@ const updateNews = async (req, res) => {
             if (!isAuthor && !isAdmin && !hasManageNews) {
                 return res.status(403).json({ message: 'Not authorized to update this article' });
             }
-            news.title = title || news.title;
-            news.content = content || news.content;
-            news.image = image || news.image;
-            news.video = video || news.video;
-            news.documents = documents || news.documents;
-            news.category = category || news.category;
+
+            const previousImage = news.image || "";
+            const previousVideo = news.video || "";
+            const previousDocumentUrls = extractDocumentUrls(news.documents || []);
+
+            if (hasOwn(body, "title")) {
+                const nextTitle = String(body.title || "").trim();
+                news.title = nextTitle || news.title;
+            }
+
+            if (hasOwn(body, "content")) {
+                const nextContent = String(body.content || "").trim();
+                news.content = nextContent || news.content;
+            }
+
+            if (hasOwn(body, "image")) {
+                news.image = typeof body.image === "string" ? body.image.trim() : "";
+            }
+
+            if (hasOwn(body, "video")) {
+                news.video = typeof body.video === "string" ? body.video.trim() : "";
+            }
+
+            if (hasOwn(body, "documents")) {
+                news.documents = parseDocuments(body.documents);
+            }
+
+            if (hasOwn(body, "category")) {
+                news.category = body.category || null;
+            }
 
             const updatedNews = await news.save();
+
+            const cleanupJobs = [];
+
+            if (hasOwn(body, "image") && previousImage && previousImage !== updatedNews.image) {
+                cleanupJobs.push(deleteCloudinaryByUrl(previousImage, { resourceType: "image", silent: true }));
+            }
+
+            if (hasOwn(body, "video") && previousVideo && previousVideo !== updatedNews.video) {
+                cleanupJobs.push(deleteCloudinaryByUrl(previousVideo, { resourceType: "video", silent: true }));
+            }
+
+            if (hasOwn(body, "documents")) {
+                const nextDocumentUrls = extractDocumentUrls(updatedNews.documents || []);
+                const removedDocumentUrls = previousDocumentUrls.filter((url) => !nextDocumentUrls.includes(url));
+                cleanupJobs.push(deleteCloudinaryMany(removedDocumentUrls, { resourceType: "raw", silent: true }));
+            }
+
+            if (cleanupJobs.length > 0) {
+                await Promise.all(cleanupJobs);
+            }
+
             await logActivity(req.user._id, "UPDATE_NEWS", { title: updatedNews.title, newsId: updatedNews._id }, req);
             res.json(updatedNews);
         } else {
@@ -211,8 +284,18 @@ const deleteNews = async (req, res) => {
                 return res.status(403).json({ message: 'Not authorized to delete this article' });
             }
 
+            const imageUrl = news.image || "";
+            const videoUrl = news.video || "";
+            const documentUrls = extractDocumentUrls(news.documents || []);
+
             await logActivity(req.user._id, "DELETE_NEWS", { title: news.title, newsId: news._id }, req);
             await news.deleteOne();
+            await Promise.all([
+                deleteCloudinaryByUrl(imageUrl, { resourceType: "image", silent: true }),
+                deleteCloudinaryByUrl(videoUrl, { resourceType: "video", silent: true }),
+                deleteCloudinaryMany(documentUrls, { resourceType: "raw", silent: true }),
+            ]);
+
             res.json({ message: "News removed" });
         } else {
             res.status(404).json({ message: "News not found" });

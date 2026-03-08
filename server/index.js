@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 const Message = require("./models/Message");
 const User = require("./models/User");
 const { protect } = require("./middleware/authMiddleware");
+const { deleteCloudinaryByUrl } = require("./utils/cloudinaryMedia");
 
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
@@ -162,6 +163,11 @@ io.on("connection", (socket) => {
         try {
             const deletedMessage = await Message.findByIdAndDelete(messageId);
             if (deletedMessage) {
+                await Promise.all([
+                    deleteCloudinaryByUrl(deletedMessage.image || "", { resourceType: "image", silent: true }),
+                    deleteCloudinaryByUrl(deletedMessage.video || "", { resourceType: "video", silent: true }),
+                    deleteCloudinaryByUrl(deletedMessage.audio || "", { resourceType: "video", silent: true }),
+                ]);
                 io.emit("message_deleted", messageId);
             }
         } catch (error) {

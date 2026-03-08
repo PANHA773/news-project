@@ -3,6 +3,7 @@ const Message = require("../models/Message");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { protect, admin } = require("../middleware/authMiddleware");
+const { deleteCloudinaryByUrl } = require("../utils/cloudinaryMedia");
 const router = express.Router();
 
 // @desc    Get all public chat messages
@@ -262,7 +263,18 @@ router.delete("/:id", protect, async (req, res) => {
             return res.status(403).json({ message: "Not authorized" });
         }
 
+        const imageUrl = message.image || "";
+        const videoUrl = message.video || "";
+        const audioUrl = message.audio || "";
+
         await message.deleteOne();
+        await Promise.all([
+            deleteCloudinaryByUrl(imageUrl, { resourceType: "image", silent: true }),
+            deleteCloudinaryByUrl(videoUrl, { resourceType: "video", silent: true }),
+            // Audio is uploaded as Cloudinary video resource_type in this app.
+            deleteCloudinaryByUrl(audioUrl, { resourceType: "video", silent: true }),
+        ]);
+
         res.json({ message: "Message removed" });
     } catch (error) {
         console.error("Error deleting message:", error);

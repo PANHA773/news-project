@@ -6,11 +6,11 @@ const Story = require("../models/Story");
 const { protect } = require("../middleware/authMiddleware");
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
 const { ensureUploadsSubdir } = require("../utils/uploads");
+const { deleteCloudinaryByUrl } = require("../utils/cloudinaryMedia");
 
 const router = express.Router();
 
 const getExpiryDate = () => new Date(Date.now() + 24 * 60 * 60 * 1000);
-const isProduction = process.env.NODE_ENV === "production";
 
 const storyUpload = multer({
     storage: multer.memoryStorage(),
@@ -49,20 +49,15 @@ const getExtFromMime = (mime) => {
 const uploadStoryFile = async (file) => {
     const isVideo = file?.mimetype?.startsWith("video/");
     const mediaSubdir = isVideo ? "videos" : "images";
+    const shouldUseCloudinary = isCloudinaryConfigured();
 
-    if (!isProduction) {
+    if (!shouldUseCloudinary) {
         const uploadDir = ensureUploadsSubdir(mediaSubdir);
         const ext = path.extname(file.originalname || "").toLowerCase() || getExtFromMime(file.mimetype);
         const fileName = `story-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
         const filePath = path.join(uploadDir, fileName);
         await fs.promises.writeFile(filePath, file.buffer);
         return `/uploads/${mediaSubdir}/${fileName}`;
-    }
-
-    if (!isCloudinaryConfigured()) {
-        const error = new Error("Cloudinary is not configured on the server");
-        error.status = 500;
-        throw error;
     }
 
     const uploadedUrl = await new Promise((resolve, reject) => {
@@ -244,7 +239,15 @@ router.delete("/:id", protect, async (req, res) => {
         if (story.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: "Not authorized" });
         }
+        const imageUrl = story.image || "";
+        const videoUrl = story.video || "";
+
         await story.deleteOne();
+        await Promise.all([
+            deleteCloudinaryByUrl(imageUrl, { resourceType: "image", silent: true }),
+            deleteCloudinaryByUrl(videoUrl, { resourceType: "video", silent: true }),
+        ]);
+
         res.json({ message: "Story removed" });
     } catch (error) {
         res.status(500).json({ message: "Server Error" });

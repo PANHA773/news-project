@@ -45,9 +45,9 @@ router.post("/", (req, res) => {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
-        const isProduction = process.env.NODE_ENV === "production";
+        const shouldUseCloudinary = isCloudinaryConfigured();
 
-        if (!isProduction) {
+        if (!shouldUseCloudinary) {
             const mediaSubdir = req.file.mimetype.startsWith("video/")
                 ? "videos"
                 : req.file.mimetype.startsWith("audio/")
@@ -71,12 +71,6 @@ router.post("/", (req, res) => {
                 return res.json(`/uploads/${mediaSubdir}/${fileName}`);
             });
             return;
-        }
-
-        if (!isCloudinaryConfigured()) {
-            return res.status(500).json({
-                message: "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.",
-            });
         }
 
         const resourceType = req.file.mimetype.startsWith("video/")
